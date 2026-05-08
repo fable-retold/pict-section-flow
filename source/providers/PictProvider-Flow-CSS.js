@@ -47,7 +47,7 @@ class PictProviderFlowCSS extends libFableServiceProviderBase
 			--pf-text-placeholder: #95a5a6;
 
 			/* Node */
-			--pf-node-body-fill: #ffffff;
+			--pf-node-body-fill: var(--theme-color-background-panel, #ffffff);
 			--pf-node-body-stroke: #d0d4d8;
 			--pf-node-body-stroke-hover: #b0b8c0;
 			--pf-node-body-stroke-width: 1;
@@ -56,7 +56,7 @@ class PictProviderFlowCSS extends libFableServiceProviderBase
 			--pf-node-shadow-hover: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.15));
 			--pf-node-shadow-selected: drop-shadow(0 2px 8px rgba(52, 152, 219, 0.25));
 			--pf-node-shadow-dragging: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.20));
-			--pf-node-title-fill: #ffffff;
+			--pf-node-title-fill: var(--theme-color-background-panel, #ffffff);
 			--pf-node-title-size: 11.5px;
 			--pf-node-title-weight: 600;
 			--pf-node-title-bar-color: #2c3e50;
@@ -65,35 +65,35 @@ class PictProviderFlowCSS extends libFableServiceProviderBase
 
 			/* Node Variants */
 			--pf-node-start-fill: #eafaf1;
-			--pf-node-start-stroke: #27ae60;
+			--pf-node-start-stroke: var(--theme-color-status-success, #27ae60);
 			--pf-node-end-fill: #e8f8f5;
 			--pf-node-end-stroke: #1abc9c;
 			--pf-node-halt-fill: #fdedec;
-			--pf-node-halt-stroke: #e74c3c;
+			--pf-node-halt-stroke: var(--theme-color-status-error, #e74c3c);
 			--pf-node-decision-fill: #fff9e6;
-			--pf-node-decision-stroke: #f39c12;
+			--pf-node-decision-stroke: var(--theme-color-status-warning, #f39c12);
 
 			/* Ports */
 			--pf-port-input-fill: #3498db;
-			--pf-port-output-fill: #2ecc71;
-			--pf-port-stroke: #ffffff;
+			--pf-port-output-fill: var(--theme-color-status-success, #2ecc71);
+			--pf-port-stroke: var(--theme-color-background-panel, #ffffff);
 			--pf-port-stroke-width: 2;
 			--pf-port-label-bg: rgba(255, 253, 240, 0.5);
 			--pf-port-label-text: #2c3e50;
 
 			/* Port Type Colors */
 			--pf-port-event-in-fill: #3498db;
-			--pf-port-event-out-fill: #2ecc71;
+			--pf-port-event-out-fill: var(--theme-color-status-success, #2ecc71);
 			--pf-port-setting-fill: #e67e22;
 			--pf-port-value-fill: #f1c40f;
-			--pf-port-error-fill: #e74c3c;
+			--pf-port-error-fill: var(--theme-color-status-error, #e74c3c);
 
 			/* Connection Type Colors (match source port) */
 			--pf-connection-event-in-stroke: #3498db;
-			--pf-connection-event-out-stroke: #2ecc71;
+			--pf-connection-event-out-stroke: var(--theme-color-status-success, #2ecc71);
 			--pf-connection-setting-stroke: #e67e22;
 			--pf-connection-value-stroke: #f1c40f;
-			--pf-connection-error-stroke: #e74c3c;
+			--pf-connection-error-stroke: var(--theme-color-status-error, #e74c3c);
 
 			/* Connections */
 			--pf-connection-stroke: #95a5a6;
@@ -141,7 +141,7 @@ class PictProviderFlowCSS extends libFableServiceProviderBase
 
 			/* Toolbar */
 			--pf-toolbar-bg: #ffffff;
-			--pf-toolbar-border: #e0e0e0;
+			--pf-toolbar-border: var(--theme-color-border-default, #e0e0e0);
 
 			/* Palette Cards */
 			--pf-card-border: #d5d8dc;
@@ -150,7 +150,7 @@ class PictProviderFlowCSS extends libFableServiceProviderBase
 
 			/* Canvas */
 			--pf-canvas-bg: #fafafa;
-			--pf-grid-stroke: #e8e8e8;
+			--pf-grid-stroke: var(--theme-color-border-light, #e8e8e8);
 
 			position: relative;
 			width: 100%;

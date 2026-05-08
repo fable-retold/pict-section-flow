@@ -18,7 +18,7 @@ const _ViewConfiguration =
 		.flowexample-about-header {
 			text-align: center;
 			padding-bottom: 1.5em;
-			border-bottom: 1px solid #eee;
+			border-bottom: 1px solid var(--theme-color-border-light, #eee);
 			margin-bottom: 2em;
 		}
 		.flowexample-about-header h1 {
@@ -39,7 +39,7 @@ const _ViewConfiguration =
 			font-size: 1.3em;
 		}
 		.flowexample-about p {
-			color: #555;
+			color: var(--theme-color-text-secondary, #555);
 			line-height: 1.7;
 		}
 		.flowexample-about-tech {
@@ -62,7 +62,7 @@ const _ViewConfiguration =
 		}
 		.flowexample-about-tech-item span {
 			font-size: 0.85em;
-			color: #666;
+			color: var(--theme-color-text-secondary, #666);
 		}
 		.flowexample-about-features {
 			display: grid;
@@ -71,8 +71,8 @@ const _ViewConfiguration =
 			margin-top: 1em;
 		}
 		.flowexample-about-feature {
-			background: #fff;
-			border: 1px solid #e0e0e0;
+			background: var(--theme-color-background-panel, #fff);
+			border: 1px solid var(--theme-color-border-default, #e0e0e0);
 			border-radius: 6px;
 			padding: 1.25em;
 		}

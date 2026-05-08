@@ -13,7 +13,7 @@ html, body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     font-size: 16px;
     line-height: 1.5;
-    color: #333;
+    color: var(--theme-color-text-primary, #333);
     background-color: #f5f7fa;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -45,7 +45,7 @@ a:hover {
 }
 
 ::-webkit-scrollbar-track {
-    background: #f1f1f1;
+    background: var(--theme-color-background-tertiary, #f1f1f1);
 }
 
 ::-webkit-scrollbar-thumb {

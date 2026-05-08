@@ -219,7 +219,7 @@ class PictProviderFlowTheme extends libFableServiceProviderBase
 				.pict-flow-toolbar-btn {
 					background-color: rgba(255,255,255,0.05);
 					border-color: rgba(255,255,255,0.2);
-					color: #ffffff;
+					color: var(--theme-color-background-panel, #ffffff);
 				}
 				.pict-flow-toolbar-btn:hover {
 					background-color: rgba(255,255,255,0.1);
@@ -458,16 +458,16 @@ class PictProviderFlowTheme extends libFableServiceProviderBase
 				.pict-flow-toolbar {
 					background-color: #c0c0c0;
 					border-bottom: 2px solid #808080;
-					border-top: 1px solid #ffffff;
+					border-top: 1px solid var(--theme-color-background-panel, #ffffff);
 				}
 				.pict-flow-toolbar-btn {
 					background-color: #c0c0c0;
 					border: 2px outset #c0c0c0;
 					border-radius: 0;
-					color: #000000;
+					color: var(--theme-color-text-primary, #000000);
 				}
 				.pict-flow-toolbar-btn:hover {
-					background-color: #d0d0d0;
+					background-color: var(--theme-color-border-default, #d0d0d0);
 				}
 				.pict-flow-toolbar-btn:active {
 					border-style: inset;
@@ -544,10 +544,10 @@ class PictProviderFlowTheme extends libFableServiceProviderBase
 					font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
 				}
 				/* Node-type bracket colors — each type gets its own bracket color */
-				.pict-flow-node-start .pict-flow-node-bracket { stroke: #27ae60; }
+				.pict-flow-node-start .pict-flow-node-bracket { stroke: var(--theme-color-status-success, #27ae60); }
 				.pict-flow-node-end .pict-flow-node-bracket { stroke: #1abc9c; }
-				.pict-flow-node-halt .pict-flow-node-bracket { stroke: #e74c3c; }
-				.pict-flow-node-decision .pict-flow-node-bracket { stroke: #f39c12; }
+				.pict-flow-node-halt .pict-flow-node-bracket { stroke: var(--theme-color-status-error, #e74c3c); }
+				.pict-flow-node-decision .pict-flow-node-bracket { stroke: var(--theme-color-status-warning, #f39c12); }
 				.pict-flow-node-default .pict-flow-node-bracket { stroke: #3498db; }
 				.pict-flow-node-action .pict-flow-node-bracket { stroke: #2c3e50; }
 				/* Override variant rules: no fills/strokes on body rects in whiteboard */

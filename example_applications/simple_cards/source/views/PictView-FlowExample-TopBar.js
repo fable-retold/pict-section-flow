@@ -32,7 +32,7 @@ const _ViewConfiguration =
 			cursor: pointer;
 		}
 		.flowexample-topbar-brand:hover {
-			color: #fff;
+			color: var(--theme-color-background-panel, #fff);
 		}
 		.flowexample-topbar-nav {
 			display: flex;
@@ -50,7 +50,7 @@ const _ViewConfiguration =
 		}
 		.flowexample-topbar-nav a:hover {
 			background-color: #34495e;
-			color: #fff;
+			color: var(--theme-color-background-panel, #fff);
 		}
 	`,
 

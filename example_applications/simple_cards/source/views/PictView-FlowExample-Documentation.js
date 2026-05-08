@@ -18,7 +18,7 @@ const _ViewConfiguration =
 		.flowexample-docs-header {
 			text-align: center;
 			padding-bottom: 1.5em;
-			border-bottom: 1px solid #eee;
+			border-bottom: 1px solid var(--theme-color-border-light, #eee);
 			margin-bottom: 2em;
 		}
 		.flowexample-docs-header h1 {
@@ -37,7 +37,7 @@ const _ViewConfiguration =
 			font-weight: 400;
 			color: #2c3e50;
 			font-size: 1.3em;
-			border-bottom: 1px solid #eee;
+			border-bottom: 1px solid var(--theme-color-border-light, #eee);
 			padding-bottom: 0.35em;
 		}
 		.flowexample-docs h3 {
@@ -47,7 +47,7 @@ const _ViewConfiguration =
 			font-size: 1.05em;
 		}
 		.flowexample-docs p {
-			color: #555;
+			color: var(--theme-color-text-secondary, #555);
 			line-height: 1.7;
 		}
 		.flowexample-docs code {
@@ -55,7 +55,7 @@ const _ViewConfiguration =
 			padding: 0.15em 0.4em;
 			border-radius: 3px;
 			font-size: 0.9em;
-			color: #e74c3c;
+			color: var(--theme-color-status-error, #e74c3c);
 		}
 		.flowexample-docs pre {
 			background: #2c3e50;
@@ -72,7 +72,7 @@ const _ViewConfiguration =
 			color: #ecf0f1;
 		}
 		.flowexample-docs ul {
-			color: #555;
+			color: var(--theme-color-text-secondary, #555);
 			line-height: 1.8;
 			padding-left: 1.5em;
 		}
