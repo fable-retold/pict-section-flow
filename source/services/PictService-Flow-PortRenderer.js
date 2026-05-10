@@ -283,31 +283,17 @@ class PictServiceFlowPortRenderer extends libFableServiceProviderBase
 	 */
 	_wirePortHintHover(pHoverEl, pPortHash, pNodeHash)
 	{
-		if (!pHoverEl || typeof pHoverEl.addEventListener !== 'function') return;
+		if (!pHoverEl || typeof pHoverEl.setAttribute !== 'function') return;
+		if (!this._FlowView || !this._FlowView.options) return;
 
-		let tmpFlowView = this._FlowView;
-		let tmpSelector = pPortHash
-			? `.pict-flow-port-hint[data-port-hash="${pPortHash}"]`
-			: `.pict-flow-port-hint[data-node-hash="${pNodeHash}"]`;
-
-		pHoverEl.addEventListener('mouseenter', function ()
-		{
-			let tmpScope = tmpFlowView._SVGElement || document;
-			let tmpHints = tmpScope.querySelectorAll(tmpSelector);
-			for (let i = 0; i < tmpHints.length; i++)
-			{
-				tmpHints[i].setAttribute('data-active', 'true');
-			}
-		});
-		pHoverEl.addEventListener('mouseleave', function ()
-		{
-			let tmpScope = tmpFlowView._SVGElement || document;
-			let tmpHints = tmpScope.querySelectorAll(tmpSelector);
-			for (let i = 0; i < tmpHints.length; i++)
-			{
-				tmpHints[i].removeAttribute('data-active');
-			}
-		});
+		// Inline attribute handlers — survive the connection-layer rebuild
+		// without leaving stale listeners on detached DOM nodes.
+		let tmpFlowViewIdentifier = this._FlowView.options.ViewIdentifier;
+		let tmpHashArg = pPortHash ? ('"' + pPortHash + '", null') : ('null, "' + pNodeHash + '"');
+		pHoverEl.setAttribute('onmouseenter',
+			"_Pict.views['" + tmpFlowViewIdentifier + "']._activatePortHints(" + tmpHashArg + ")");
+		pHoverEl.setAttribute('onmouseleave',
+			"_Pict.views['" + tmpFlowViewIdentifier + "']._deactivatePortHints(" + tmpHashArg + ")");
 	}
 
 	/**

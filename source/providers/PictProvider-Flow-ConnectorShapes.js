@@ -409,14 +409,18 @@ class PictProviderFlowConnectorShapes extends libFableServiceProviderBase
 
 		let tmpMarkup = '';
 
-		// Normal connection arrowhead (default gray)
+		// Normal connection arrowhead — class-driven fill so the host theme's
+		// --theme-color-* tokens (mapped to --pf-connection-stroke etc. in
+		// PictProvider-Flow-CSS) flow through automatically. The polygon's
+		// `fill` attribute is kept as a fallback for environments that
+		// ignore CSS rules on marker children.
 		tmpMarkup += '<marker id="flow-arrowhead-' + pViewIdentifier + '"'
 			+ ' markerWidth="' + tmpConnectionMarker.MarkerWidth + '"'
 			+ ' markerHeight="' + tmpConnectionMarker.MarkerHeight + '"'
 			+ ' refX="' + tmpConnectionMarker.RefX + '"'
 			+ ' refY="' + tmpConnectionMarker.RefY + '"'
 			+ ' orient="auto" markerUnits="strokeWidth">'
-			+ '<polygon points="' + tmpConnectionMarker.Points + '" fill="' + tmpConnectionMarker.Fill + '" />'
+			+ '<polygon class="pict-flow-arrowhead pict-flow-arrowhead-default" points="' + tmpConnectionMarker.Points + '" fill="' + tmpConnectionMarker.Fill + '" />'
 			+ '</marker>';
 
 		// Per-port-type connection arrowheads
@@ -437,7 +441,7 @@ class PictProviderFlowConnectorShapes extends libFableServiceProviderBase
 				+ ' refX="' + tmpConnectionMarker.RefX + '"'
 				+ ' refY="' + tmpConnectionMarker.RefY + '"'
 				+ ' orient="auto" markerUnits="strokeWidth">'
-				+ '<polygon points="' + tmpConnectionMarker.Points + '" fill="' + tmpPortTypeColors[tmpType] + '" />'
+				+ '<polygon class="pict-flow-arrowhead pict-flow-arrowhead-' + tmpType + '" points="' + tmpConnectionMarker.Points + '" fill="' + tmpPortTypeColors[tmpType] + '" />'
 				+ '</marker>';
 		}
 
@@ -448,7 +452,7 @@ class PictProviderFlowConnectorShapes extends libFableServiceProviderBase
 			+ ' refX="' + tmpSelectedMarker.RefX + '"'
 			+ ' refY="' + tmpSelectedMarker.RefY + '"'
 			+ ' orient="auto" markerUnits="strokeWidth">'
-			+ '<polygon points="' + tmpSelectedMarker.Points + '" fill="' + tmpSelectedMarker.Fill + '" />'
+			+ '<polygon class="pict-flow-arrowhead pict-flow-arrowhead-selected" points="' + tmpSelectedMarker.Points + '" fill="' + tmpSelectedMarker.Fill + '" />'
 			+ '</marker>';
 
 		// Tether arrowhead
@@ -458,7 +462,7 @@ class PictProviderFlowConnectorShapes extends libFableServiceProviderBase
 			+ ' refX="' + tmpTetherMarker.RefX + '"'
 			+ ' refY="' + tmpTetherMarker.RefY + '"'
 			+ ' orient="auto" markerUnits="strokeWidth">'
-			+ '<polygon points="' + tmpTetherMarker.Points + '" fill="' + tmpTetherMarker.Fill + '" />'
+			+ '<polygon class="pict-flow-arrowhead pict-flow-arrowhead-tether" points="' + tmpTetherMarker.Points + '" fill="' + tmpTetherMarker.Fill + '" />'
 			+ '</marker>';
 
 		return tmpMarkup;

@@ -17,42 +17,56 @@ const _DefaultConfiguration =
 	[
 		{
 			Hash: 'Flow-FloatingToolbar-Template',
+			// Inline handlers route to the floating toolbar view via _Pict.views
+			// (see _handleButtonClick / _startDrag / _toggleCollapse).
 			Template: /*html*/`
 <div class="pict-flow-floating-toolbar" id="Flow-FloatingToolbar-{~D:Record.FlowViewIdentifier~}">
-	<div class="pict-flow-floating-grip" id="Flow-FloatingGrip-{~D:Record.FlowViewIdentifier~}" title="Drag to move · Double-click to collapse">
+	<div class="pict-flow-floating-grip" id="Flow-FloatingGrip-{~D:Record.FlowViewIdentifier~}" title="Drag to move · Double-click to collapse"
+		onmousedown="_Pict.views['{~D:Record.FlowViewIdentifier~}']._ToolbarView._FloatingToolbarView._startDrag(event)"
+		ondblclick="_Pict.views['{~D:Record.FlowViewIdentifier~}']._ToolbarView._FloatingToolbarView._handleGripDoubleClick(event)">
 		<span id="Flow-FloatingIcon-grip-{~D:Record.FlowViewIdentifier~}"></span>
 	</div>
-	<button class="pict-flow-floating-btn" data-flow-action="add-node" title="Add Node">
+	<button class="pict-flow-floating-btn" data-flow-action="add-node" title="Add Node"
+		onclick="_Pict.views['{~D:Record.FlowViewIdentifier~}']._ToolbarView._FloatingToolbarView._handleButtonClick('add-node')">
 		<span id="Flow-FloatingIcon-plus-{~D:Record.FlowViewIdentifier~}"></span>
 	</button>
-	<button class="pict-flow-floating-btn" data-flow-action="cards-popup" title="Cards">
+	<button class="pict-flow-floating-btn" data-flow-action="cards-popup" title="Cards"
+		onclick="_Pict.views['{~D:Record.FlowViewIdentifier~}']._ToolbarView._FloatingToolbarView._handleButtonClick('cards-popup')">
 		<span id="Flow-FloatingIcon-cards-{~D:Record.FlowViewIdentifier~}"></span>
 	</button>
-	<button class="pict-flow-floating-btn" data-flow-action="delete-selected" title="Delete Selected">
+	<button class="pict-flow-floating-btn" data-flow-action="delete-selected" title="Delete Selected"
+		onclick="_Pict.views['{~D:Record.FlowViewIdentifier~}']._ToolbarView._FloatingToolbarView._handleButtonClick('delete-selected')">
 		<span id="Flow-FloatingIcon-trash-{~D:Record.FlowViewIdentifier~}"></span>
 	</button>
 	<div class="pict-flow-floating-separator"></div>
-	<button class="pict-flow-floating-btn" data-flow-action="zoom-in" title="Zoom In">
+	<button class="pict-flow-floating-btn" data-flow-action="zoom-in" title="Zoom In"
+		onclick="_Pict.views['{~D:Record.FlowViewIdentifier~}']._ToolbarView._FloatingToolbarView._handleButtonClick('zoom-in')">
 		<span id="Flow-FloatingIcon-zoom-in-{~D:Record.FlowViewIdentifier~}"></span>
 	</button>
-	<button class="pict-flow-floating-btn" data-flow-action="zoom-out" title="Zoom Out">
+	<button class="pict-flow-floating-btn" data-flow-action="zoom-out" title="Zoom Out"
+		onclick="_Pict.views['{~D:Record.FlowViewIdentifier~}']._ToolbarView._FloatingToolbarView._handleButtonClick('zoom-out')">
 		<span id="Flow-FloatingIcon-zoom-out-{~D:Record.FlowViewIdentifier~}"></span>
 	</button>
-	<button class="pict-flow-floating-btn" data-flow-action="zoom-fit" title="Fit to View">
+	<button class="pict-flow-floating-btn" data-flow-action="zoom-fit" title="Fit to View"
+		onclick="_Pict.views['{~D:Record.FlowViewIdentifier~}']._ToolbarView._FloatingToolbarView._handleButtonClick('zoom-fit')">
 		<span id="Flow-FloatingIcon-zoom-fit-{~D:Record.FlowViewIdentifier~}"></span>
 	</button>
 	<div class="pict-flow-floating-separator"></div>
-	<button class="pict-flow-floating-btn" data-flow-action="auto-layout" title="Auto Layout">
+	<button class="pict-flow-floating-btn" data-flow-action="auto-layout" title="Auto Layout"
+		onclick="_Pict.views['{~D:Record.FlowViewIdentifier~}']._ToolbarView._FloatingToolbarView._handleButtonClick('auto-layout')">
 		<span id="Flow-FloatingIcon-auto-layout-{~D:Record.FlowViewIdentifier~}"></span>
 	</button>
-	<button class="pict-flow-floating-btn" data-flow-action="layout-popup" title="Layout">
+	<button class="pict-flow-floating-btn" data-flow-action="layout-popup" title="Layout"
+		onclick="_Pict.views['{~D:Record.FlowViewIdentifier~}']._ToolbarView._FloatingToolbarView._handleButtonClick('layout-popup')">
 		<span id="Flow-FloatingIcon-layout-{~D:Record.FlowViewIdentifier~}"></span>
 	</button>
-	<button class="pict-flow-floating-btn" data-flow-action="fullscreen" title="Toggle Fullscreen">
+	<button class="pict-flow-floating-btn" data-flow-action="fullscreen" title="Toggle Fullscreen"
+		onclick="_Pict.views['{~D:Record.FlowViewIdentifier~}']._ToolbarView._FloatingToolbarView._handleButtonClick('fullscreen')">
 		<span id="Flow-FloatingIcon-fullscreen-{~D:Record.FlowViewIdentifier~}"></span>
 	</button>
 	<div class="pict-flow-floating-separator"></div>
-	<button class="pict-flow-floating-btn" data-flow-action="dock-toolbar" title="Dock Toolbar">
+	<button class="pict-flow-floating-btn" data-flow-action="dock-toolbar" title="Dock Toolbar"
+		onclick="_Pict.views['{~D:Record.FlowViewIdentifier~}']._ToolbarView._FloatingToolbarView._handleButtonClick('dock-toolbar')">
 		<span id="Flow-FloatingIcon-dock-{~D:Record.FlowViewIdentifier~}"></span>
 	</button>
 </div>
@@ -104,58 +118,13 @@ class PictViewFlowFloatingToolbar extends libPictView
 	{
 		let tmpFlowViewIdentifier = this.options.FlowViewIdentifier;
 
-		// Bind click delegation for action buttons
-		let tmpFloatingToolbar = this.pict.ContentAssignment.getElement(`#Flow-FloatingToolbar-${tmpFlowViewIdentifier}`);
-		if (tmpFloatingToolbar.length > 0)
-		{
-			tmpFloatingToolbar[0].addEventListener('click', (pEvent) =>
-			{
-				let tmpTarget = pEvent.target;
-				if (!tmpTarget) return;
-
-				let tmpButton = tmpTarget.closest('[data-flow-action]');
-				if (!tmpButton) return;
-
-				let tmpAction = tmpButton.getAttribute('data-flow-action');
-				if (tmpAction === 'dock-toolbar')
-				{
-					if (this._ToolbarView)
-					{
-						this._ToolbarView._setToolbarMode('docked');
-					}
-					return;
-				}
-
-				// Delegate all other actions to the docked toolbar
-				if (this._ToolbarView)
-				{
-					this._ToolbarView._handleToolbarAction(tmpAction);
-				}
-			});
-		}
-
-		// Bind drag behavior on the grip
-		let tmpGrip = this.pict.ContentAssignment.getElement(`#Flow-FloatingGrip-${tmpFlowViewIdentifier}`);
-		if (tmpGrip.length > 0)
-		{
-			tmpGrip[0].addEventListener('mousedown', (pEvent) =>
-			{
-				this._startDrag(pEvent);
-			});
-
-			// Double-click grip to toggle collapsed state
-			tmpGrip[0].addEventListener('dblclick', (pEvent) =>
-			{
-				pEvent.preventDefault();
-				pEvent.stopPropagation();
-				this._toggleCollapse();
-			});
-		}
-
-		// Populate icons
+		// Button clicks and grip drag/dblclick are wired inline in
+		// Flow-FloatingToolbar-Template — see _handleButtonClick / _startDrag /
+		// _handleGripDoubleClick. Only icon population and option-based
+		// pruning happen here.
 		this._populateIcons();
 
-		// Remove buttons from DOM based on options
+		let tmpFloatingToolbar = this.pict.ContentAssignment.getElement(`#Flow-FloatingToolbar-${tmpFlowViewIdentifier}`);
 		if (tmpFloatingToolbar.length > 0)
 		{
 			if (this.options.EnableAddNode === false)
@@ -177,6 +146,45 @@ class PictViewFlowFloatingToolbar extends libPictView
 		}
 
 		return super.onAfterRender(pRenderable, pRenderDestinationAddress, pRecord, pContent);
+	}
+
+	/**
+	 * Handle a click on a floating toolbar action button. Called from the
+	 * inline `onclick` handler on each button.
+	 *
+	 * @param {string} pAction - Value of the button's data-flow-action attr
+	 */
+	_handleButtonClick(pAction)
+	{
+		if (pAction === 'dock-toolbar')
+		{
+			if (this._ToolbarView)
+			{
+				this._ToolbarView._setToolbarMode('docked');
+			}
+			return;
+		}
+		if (this._ToolbarView)
+		{
+			this._ToolbarView._handleToolbarAction(pAction);
+		}
+	}
+
+	/**
+	 * Handle a double-click on the grip. Toggles collapsed state and
+	 * prevents the event from reaching the surrounding canvas. Called
+	 * from the inline `ondblclick` handler.
+	 *
+	 * @param {Event} pEvent
+	 */
+	_handleGripDoubleClick(pEvent)
+	{
+		if (pEvent && typeof pEvent.preventDefault === 'function')
+		{
+			pEvent.preventDefault();
+			pEvent.stopPropagation();
+		}
+		this._toggleCollapse();
 	}
 
 	/**

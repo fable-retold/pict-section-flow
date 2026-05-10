@@ -3,6 +3,7 @@
   - [Overview](/)
   - [Quick Start](Getting_Started.md)
   - [Custom Styling](Custom-Styling.md)
+  - [Theme Integration](Theme_Integration.md)
 
 - Architecture
 

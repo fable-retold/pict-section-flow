@@ -85,10 +85,13 @@ const _DefaultConfiguration =
 	[
 		{
 			Hash: 'Flow-PanelChrome-Template',
-			Template: /*html*/`<div class="pict-flow-panel" xmlns="http://www.w3.org/1999/xhtml"><div class="pict-flow-panel-titlebar" data-element-type="panel-titlebar" data-panel-hash="{~D:Record.Hash~}"><span class="pict-flow-panel-title-text">{~D:Record.Title~}</span><span class="pict-flow-panel-close-btn" data-element-type="panel-close" data-panel-hash="{~D:Record.Hash~}"><span class="pict-flow-panel-close-icon"></span></span></div><div class="pict-flow-panel-content" data-panel-hash="{~D:Record.Hash~}"><div class="pict-flow-panel-tab-pane active" data-tab="properties" data-panel-hash="{~D:Record.Hash~}"></div><div class="pict-flow-panel-tab-pane" data-tab="help" data-panel-hash="{~D:Record.Hash~}" style="display:none;"></div><div class="pict-flow-panel-tab-pane" data-tab="appearance" data-panel-hash="{~D:Record.Hash~}" style="display:none;"></div></div><div class="pict-flow-panel-resize-handle" data-element-type="panel-resize" data-panel-hash="{~D:Record.Hash~}"></div><div class="pict-flow-panel-tabbar" data-panel-hash="{~D:Record.Hash~}"><div class="pict-flow-panel-tab active" data-tab-target="properties" data-panel-hash="{~D:Record.Hash~}">Properties</div><div class="pict-flow-panel-tab" data-tab-target="help" data-panel-hash="{~D:Record.Hash~}" style="display:none;">Help</div><div class="pict-flow-panel-tab" data-tab-target="appearance" data-panel-hash="{~D:Record.Hash~}">Appearance</div></div></div>`
+			Template: /*html*/`<div class="pict-flow-panel" xmlns="http://www.w3.org/1999/xhtml"><div class="pict-flow-panel-titlebar" data-element-type="panel-titlebar" data-panel-hash="{~D:Record.Hash~}"><span class="pict-flow-panel-title-text">{~D:Record.Title~}</span><span class="pict-flow-panel-close-btn" data-element-type="panel-close" data-panel-hash="{~D:Record.Hash~}"><span class="pict-flow-panel-close-icon"></span></span></div><div class="pict-flow-panel-content" data-panel-hash="{~D:Record.Hash~}" onpointerdown="event.stopPropagation()" onwheel="event.stopPropagation()"><div class="pict-flow-panel-tab-pane active" data-tab="properties" data-panel-hash="{~D:Record.Hash~}"></div><div class="pict-flow-panel-tab-pane" data-tab="help" data-panel-hash="{~D:Record.Hash~}" style="display:none;"></div><div class="pict-flow-panel-tab-pane" data-tab="appearance" data-panel-hash="{~D:Record.Hash~}" style="display:none;"></div></div><div class="pict-flow-panel-resize-handle" data-element-type="panel-resize" data-panel-hash="{~D:Record.Hash~}"></div><div class="pict-flow-panel-tabbar" data-panel-hash="{~D:Record.Hash~}" onpointerdown="event.stopPropagation()" onwheel="event.stopPropagation()"><div class="pict-flow-panel-tab active" data-tab-target="properties" data-panel-hash="{~D:Record.Hash~}" onclick="_Pict.views['{~D:Record.FlowViewIdentifier~}']._handlePanelTabClick(this, event)">Properties</div><div class="pict-flow-panel-tab" data-tab-target="help" data-panel-hash="{~D:Record.Hash~}" style="display:none;" onclick="_Pict.views['{~D:Record.FlowViewIdentifier~}']._handlePanelTabClick(this, event)">Help</div><div class="pict-flow-panel-tab" data-tab-target="appearance" data-panel-hash="{~D:Record.Hash~}" onclick="_Pict.views['{~D:Record.FlowViewIdentifier~}']._handlePanelTabClick(this, event)">Appearance</div></div></div>`
 		},
 		{
 			Hash: 'Flow-Container-Template',
+			// Inline pointer/wheel/contextmenu handlers route to the
+			// InteractionManager via the FlowView. Keyboard events stay
+			// document-level (no element-level inline equivalent).
 			Template: /*html*/`
 <div class="pict-flow-container" id="Flow-Wrapper-{~D:Record.ViewIdentifier~}">
 	<div id="Flow-Toolbar-{~D:Record.ViewIdentifier~}"></div>
@@ -96,7 +99,13 @@ const _DefaultConfiguration =
 	<div class="pict-flow-svg-container" id="Flow-SVG-Container-{~D:Record.ViewIdentifier~}">
 		<svg class="pict-flow-svg"
 			id="Flow-SVG-{~D:Record.ViewIdentifier~}"
-			xmlns="http://www.w3.org/2000/svg">
+			xmlns="http://www.w3.org/2000/svg"
+			onpointerdown="_Pict.views['{~D:Record.ViewIdentifier~}']._handleSVGPointerDown(event)"
+			onpointermove="_Pict.views['{~D:Record.ViewIdentifier~}']._handleSVGPointerMove(event)"
+			onpointerup="_Pict.views['{~D:Record.ViewIdentifier~}']._handleSVGPointerUp(event)"
+			onpointerleave="_Pict.views['{~D:Record.ViewIdentifier~}']._handleSVGPointerUp(event)"
+			onwheel="_Pict.views['{~D:Record.ViewIdentifier~}']._handleSVGWheel(event)"
+			oncontextmenu="_Pict.views['{~D:Record.ViewIdentifier~}']._handleSVGContextMenu(event)">
 			<defs>
 				<pattern id="flow-grid-{~D:Record.ViewIdentifier~}"
 					width="20" height="20" patternUnits="userSpaceOnUse">
@@ -351,7 +360,63 @@ class PictViewFlow extends libPictView
 		// Instantiate all remaining services (skips Theme + Noise since already set)
 		this._instantiateServices();
 
+		// Subscribe to the host application's pict-provider-theme so the flow
+		// editor's marker arrowhead colors and shape overrides update when the
+		// host swaps light/dark or palette themes. CSS variables (--theme-*)
+		// re-resolve automatically — only the SVG <marker> defs (which inline
+		// fill colors at build time) and ConnectorShapesProvider state need a
+		// manual refresh.
+		this._subscribeToHostTheme();
+
 		return super.onBeforeInitialize();
+	}
+
+	/**
+	 * If the host application has registered pict-provider-theme, subscribe
+	 * to its onApply hook so we can refresh anything that doesn't pick up
+	 * the new --theme-* CSS variables automatically (SVG marker fills,
+	 * connector shape overrides). No-op when no host theme provider is
+	 * available — the flow editor still functions with its built-in themes.
+	 */
+	_subscribeToHostTheme()
+	{
+		let tmpHostTheme = this._resolveHostThemeProvider();
+		if (!tmpHostTheme || typeof tmpHostTheme.onApply !== 'function') return;
+
+		this._HostThemeUnsubscribe = tmpHostTheme.onApply(() =>
+		{
+			if (this._CSSProvider) this._CSSProvider.registerCSS();
+			this._reinjectMarkerDefs();
+			if (this.initialRenderComplete) this.renderFlow();
+		});
+	}
+
+	/**
+	 * Locate the host's pict-provider-theme instance. It is normally
+	 * registered under a stable service hash by the host app; we check
+	 * common locations so consumers don't have to wire it manually.
+	 * @returns {Object|null}
+	 */
+	_resolveHostThemeProvider()
+	{
+		let tmpPict = this.pict;
+		if (!tmpPict) return null;
+		if (tmpPict.providers)
+		{
+			let tmpKeys = Object.keys(tmpPict.providers);
+			for (let i = 0; i < tmpKeys.length; i++)
+			{
+				let tmpProvider = tmpPict.providers[tmpKeys[i]];
+				if (tmpProvider
+					&& typeof tmpProvider.onApply === 'function'
+					&& typeof tmpProvider.applyTheme === 'function'
+					&& typeof tmpProvider.listThemes === 'function')
+				{
+					return tmpProvider;
+				}
+			}
+		}
+		return null;
 	}
 
 	onAfterRender(pRenderable, pRenderDestinationAddress, pRecord, pContent)
@@ -1147,6 +1212,122 @@ class PictViewFlow extends libPictView
 	updatePanelPosition(pPanelHash, pX, pY)
 	{
 		return this._PanelManager.updatePanelPosition(pPanelHash, pX, pY);
+	}
+
+	// ── Inline-handler bridges (called from template onclick/oninput attrs)
+
+	/**
+	 * Handle a click on a panel tab button. Stops propagation so the
+	 * underlying SVG doesn't see it, then delegates to the properties
+	 * panel view for the actual visibility toggle.
+	 *
+	 * @param {Element} pTabElement
+	 * @param {Event} pEvent
+	 */
+	_handlePanelTabClick(pTabElement, pEvent)
+	{
+		if (pEvent && typeof pEvent.stopPropagation === 'function')
+		{
+			pEvent.stopPropagation();
+		}
+		if (this._PropertiesPanelView)
+		{
+			this._PropertiesPanelView.switchPanelTab(pTabElement);
+		}
+	}
+
+	/**
+	 * Apply a node property change driven from the appearance editor's
+	 * inline `oninput` handler. Stops propagation, then delegates to the
+	 * properties panel view.
+	 *
+	 * @param {string} pNodeHash
+	 * @param {string} pPropPath
+	 * @param {string} pValue
+	 * @param {string} pInputType - 'text' | 'number' | 'color'
+	 * @param {Event} [pEvent]
+	 */
+	_applyNodePropChange(pNodeHash, pPropPath, pValue, pInputType, pEvent)
+	{
+		if (pEvent && typeof pEvent.stopPropagation === 'function')
+		{
+			pEvent.stopPropagation();
+		}
+		if (this._PropertiesPanelView)
+		{
+			this._PropertiesPanelView._applyNodePropChange(pNodeHash, pPropPath, pValue, pInputType);
+		}
+	}
+
+	/**
+	 * Inline-handler bridge — light up port-hint paths matching the given
+	 * port (and optionally node) hash. Called from inline `onmouseenter`
+	 * on port badges; see PictService-Flow-PortRenderer._wirePortHintHover.
+	 *
+	 * @param {string|null} pPortHash
+	 * @param {string|null} pNodeHash
+	 */
+	_activatePortHints(pPortHash, pNodeHash)
+	{
+		this._togglePortHints(pPortHash, pNodeHash, true);
+	}
+
+	/**
+	 * Inline-handler bridge — clear port-hint highlights.
+	 *
+	 * @param {string|null} pPortHash
+	 * @param {string|null} pNodeHash
+	 */
+	_deactivatePortHints(pPortHash, pNodeHash)
+	{
+		this._togglePortHints(pPortHash, pNodeHash, false);
+	}
+
+	_togglePortHints(pPortHash, pNodeHash, pActive)
+	{
+		let tmpScope = this._SVGElement || document;
+		let tmpSelector = pPortHash
+			? '.pict-flow-port-hint[data-port-hash="' + pPortHash + '"]'
+			: '.pict-flow-port-hint[data-node-hash="' + pNodeHash + '"]';
+		let tmpHints = tmpScope.querySelectorAll(tmpSelector);
+		for (let i = 0; i < tmpHints.length; i++)
+		{
+			if (pActive)
+			{
+				tmpHints[i].setAttribute('data-active', 'true');
+			}
+			else
+			{
+				tmpHints[i].removeAttribute('data-active');
+			}
+		}
+	}
+
+	// ── SVG inline pointer/wheel bridges ─────────────────────────────────
+
+	_handleSVGPointerDown(pEvent)
+	{
+		if (this._InteractionManager) this._InteractionManager._onPointerDown(pEvent);
+	}
+
+	_handleSVGPointerMove(pEvent)
+	{
+		if (this._InteractionManager) this._InteractionManager._onPointerMove(pEvent);
+	}
+
+	_handleSVGPointerUp(pEvent)
+	{
+		if (this._InteractionManager) this._InteractionManager._onPointerUp(pEvent);
+	}
+
+	_handleSVGWheel(pEvent)
+	{
+		if (this._InteractionManager) this._InteractionManager._onWheel(pEvent);
+	}
+
+	_handleSVGContextMenu(pEvent)
+	{
+		if (this._InteractionManager) this._InteractionManager.handleContextMenu(pEvent);
 	}
 }
 

@@ -37,31 +37,37 @@ class PictProviderFlowCSS extends libFableServiceProviderBase
 			/* ── Design Tokens ─────────────────────────────────────
 			   Override these custom properties to theme the flow diagram.
 			   Node-type classes (.pict-flow-node-{type}) can scope-override
-			   any variable for per-type variation. */
+			   any variable for per-type variation.
+
+			   Defaults reference the host application's pict-provider-theme
+			   tokens (--theme-color-*) when available, with hardcoded
+			   fallbacks so the editor still looks reasonable in unthemed
+			   contexts. Internal flow themes (sketch, blueprint, etc.) keep
+			   layering on top via .pict-flow-container scoped overrides. */
 
 			/* Text */
-			--pf-text-primary: #2c3e50;
-			--pf-text-heading: #1a252f;
-			--pf-text-secondary: #7f8c8d;
-			--pf-text-tertiary: #8e99a4;
-			--pf-text-placeholder: #95a5a6;
+			--pf-text-primary: var(--theme-color-text-primary, #2c3e50);
+			--pf-text-heading: var(--theme-color-text-primary, #1a252f);
+			--pf-text-secondary: var(--theme-color-text-secondary, #7f8c8d);
+			--pf-text-tertiary: var(--theme-color-text-muted, #8e99a4);
+			--pf-text-placeholder: var(--theme-color-text-placeholder, #95a5a6);
 
 			/* Node */
 			--pf-node-body-fill: var(--theme-color-background-panel, #ffffff);
-			--pf-node-body-stroke: #d0d4d8;
-			--pf-node-body-stroke-hover: #b0b8c0;
+			--pf-node-body-stroke: var(--theme-color-border-default, #d0d4d8);
+			--pf-node-body-stroke-hover: var(--theme-color-border-strong, #b0b8c0);
 			--pf-node-body-stroke-width: 1;
 			--pf-node-body-radius: 8px;
-			--pf-node-shadow: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.10));
-			--pf-node-shadow-hover: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.15));
+			--pf-node-shadow: drop-shadow(0 1px 3px var(--theme-color-shadow-color, rgba(0, 0, 0, 0.10)));
+			--pf-node-shadow-hover: drop-shadow(0 2px 6px var(--theme-color-shadow-color, rgba(0, 0, 0, 0.15)));
 			--pf-node-shadow-selected: drop-shadow(0 2px 8px rgba(52, 152, 219, 0.25));
-			--pf-node-shadow-dragging: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.20));
+			--pf-node-shadow-dragging: drop-shadow(0 4px 12px var(--theme-color-shadow-color, rgba(0, 0, 0, 0.20)));
 			--pf-node-title-fill: var(--theme-color-background-panel, #ffffff);
 			--pf-node-title-size: 11.5px;
 			--pf-node-title-weight: 600;
-			--pf-node-title-bar-color: #2c3e50;
-			--pf-node-type-label-fill: #a0a8b0;
-			--pf-node-selected-stroke: #3498db;
+			--pf-node-title-bar-color: var(--theme-color-text-primary, #2c3e50);
+			--pf-node-type-label-fill: var(--theme-color-text-muted, #a0a8b0);
+			--pf-node-selected-stroke: var(--theme-color-brand-primary, #3498db);
 
 			/* Node Variants */
 			--pf-node-start-fill: #eafaf1;
@@ -73,83 +79,111 @@ class PictProviderFlowCSS extends libFableServiceProviderBase
 			--pf-node-decision-fill: #fff9e6;
 			--pf-node-decision-stroke: var(--theme-color-status-warning, #f39c12);
 
+			/* ── Color roles ───────────────────────────────────────
+			   Generic, theme-aware semantic colors that node types and
+			   individual cards opt into via a ColorRole field. The
+			   "-soft" variant is the tinted background; the bare role is
+			   the title-bar / outline / accent stroke.
+
+			   Hosts can override any of these tokens at .pict-flow-container
+			   scope (or at their own scope) without touching JS. Built-in
+			   node types resolve their visuals through these tokens, so
+			   theming a role automatically retints every card that uses it.
+
+			   Soft tints use color-mix() — supported in Chrome 111+,
+			   Safari 16.2+, Firefox 113+. The hardcoded fallbacks keep the
+			   editor presentable on older engines. */
+			--pf-color-success: var(--theme-color-status-success, #27ae60);
+			--pf-color-success-soft: color-mix(in srgb, var(--pf-color-success) 12%, transparent);
+			--pf-color-warning: var(--theme-color-status-warning, #f39c12);
+			--pf-color-warning-soft: color-mix(in srgb, var(--pf-color-warning) 14%, transparent);
+			--pf-color-error: var(--theme-color-status-error, #e74c3c);
+			--pf-color-error-soft: color-mix(in srgb, var(--pf-color-error) 12%, transparent);
+			--pf-color-info: var(--theme-color-status-info, #3498db);
+			--pf-color-info-soft: color-mix(in srgb, var(--pf-color-info) 12%, transparent);
+			--pf-color-accent: var(--theme-color-brand-accent, #1abc9c);
+			--pf-color-accent-soft: color-mix(in srgb, var(--pf-color-accent) 14%, transparent);
+			--pf-color-neutral: var(--theme-color-text-primary, #2c3e50);
+			--pf-color-neutral-soft: var(--theme-color-background-panel, #ffffff);
+			--pf-color-neutral-onfill: var(--theme-color-background-panel, #ffffff);
+
 			/* Ports */
-			--pf-port-input-fill: #3498db;
+			--pf-port-input-fill: var(--theme-color-status-info, #3498db);
 			--pf-port-output-fill: var(--theme-color-status-success, #2ecc71);
 			--pf-port-stroke: var(--theme-color-background-panel, #ffffff);
 			--pf-port-stroke-width: 2;
 			--pf-port-label-bg: rgba(255, 253, 240, 0.5);
-			--pf-port-label-text: #2c3e50;
+			--pf-port-label-text: var(--theme-color-text-primary, #2c3e50);
 
 			/* Port Type Colors */
-			--pf-port-event-in-fill: #3498db;
+			--pf-port-event-in-fill: var(--theme-color-status-info, #3498db);
 			--pf-port-event-out-fill: var(--theme-color-status-success, #2ecc71);
 			--pf-port-setting-fill: #e67e22;
 			--pf-port-value-fill: #f1c40f;
 			--pf-port-error-fill: var(--theme-color-status-error, #e74c3c);
 
 			/* Connection Type Colors (match source port) */
-			--pf-connection-event-in-stroke: #3498db;
+			--pf-connection-event-in-stroke: var(--theme-color-status-info, #3498db);
 			--pf-connection-event-out-stroke: var(--theme-color-status-success, #2ecc71);
 			--pf-connection-setting-stroke: #e67e22;
 			--pf-connection-value-stroke: #f1c40f;
 			--pf-connection-error-stroke: var(--theme-color-status-error, #e74c3c);
 
 			/* Connections */
-			--pf-connection-stroke: #95a5a6;
-			--pf-connection-stroke-hover: #7f8c8d;
-			--pf-connection-selected-stroke: #3498db;
+			--pf-connection-stroke: var(--theme-color-border-strong, #95a5a6);
+			--pf-connection-stroke-hover: var(--theme-color-text-secondary, #7f8c8d);
+			--pf-connection-selected-stroke: var(--theme-color-brand-primary, #3498db);
 
 			/* Panels */
-			--pf-panel-bg: #ffffff;
-			--pf-panel-border: #d0d4d8;
+			--pf-panel-bg: var(--theme-color-background-panel, #ffffff);
+			--pf-panel-border: var(--theme-color-border-default, #d0d4d8);
 			--pf-panel-radius: 8px;
-			--pf-panel-shadow: 0 4px 12px rgba(0,0,0,0.10), 0 1px 3px rgba(0,0,0,0.06);
-			--pf-panel-titlebar-bg: #f7f8fa;
-			--pf-panel-titlebar-border: #e8eaed;
-			--pf-panel-title-color: #2c3e50;
+			--pf-panel-shadow: 0 4px 12px var(--theme-color-shadow-color, rgba(0, 0, 0, 0.10)), 0 1px 3px var(--theme-color-shadow-color, rgba(0, 0, 0, 0.06));
+			--pf-panel-titlebar-bg: var(--theme-color-background-secondary, #f7f8fa);
+			--pf-panel-titlebar-border: var(--theme-color-border-light, #e8eaed);
+			--pf-panel-title-color: var(--theme-color-text-primary, #2c3e50);
 
 			/* Tabs */
-			--pf-tab-text: #8e99a4;
-			--pf-tab-text-hover: #5a6a7a;
+			--pf-tab-text: var(--theme-color-text-muted, #8e99a4);
+			--pf-tab-text-hover: var(--theme-color-text-secondary, #5a6a7a);
 			--pf-tab-active-border: var(--pf-node-selected-stroke);
-			--pf-resize-handle-hover: #e0e3e6;
+			--pf-resize-handle-hover: var(--theme-color-border-light, #e0e3e6);
 
 			/* Forms & Inputs */
-			--pf-input-border: #d5d8dc;
-			--pf-input-border-focus: #3498db;
-			--pf-divider-light: #ecf0f1;
-			--pf-divider-medium: #e8eaed;
+			--pf-input-border: var(--theme-color-border-default, #d5d8dc);
+			--pf-input-border-focus: var(--theme-color-focus-outline, #3498db);
+			--pf-divider-light: var(--theme-color-border-light, #ecf0f1);
+			--pf-divider-medium: var(--theme-color-border-light, #e8eaed);
 
 			/* Buttons */
-			--pf-button-border: #bdc3c7;
-			--pf-button-hover-border: #95a5a6;
-			--pf-button-hover-bg: #ecf0f1;
-			--pf-button-active-bg: #d5dbdb;
-			--pf-button-danger-text: #e74c3c;
+			--pf-button-border: var(--theme-color-border-default, #bdc3c7);
+			--pf-button-hover-border: var(--theme-color-border-strong, #95a5a6);
+			--pf-button-hover-bg: var(--theme-color-background-hover, #ecf0f1);
+			--pf-button-active-bg: var(--theme-color-background-selected, #d5dbdb);
+			--pf-button-danger-text: var(--theme-color-status-error, #e74c3c);
 			--pf-button-danger-hover-bg: #fdedec;
-			--pf-button-close-color: #b0b8c0;
+			--pf-button-close-color: var(--theme-color-text-muted, #b0b8c0);
 
 			/* Badges */
-			--pf-badge-category-bg: #f0f2f4;
-			--pf-badge-category-text: #6b7b8d;
+			--pf-badge-category-bg: var(--theme-color-background-tertiary, #f0f2f4);
+			--pf-badge-category-text: var(--theme-color-text-secondary, #6b7b8d);
 			--pf-badge-code-bg: #eaf2f8;
 			--pf-badge-code-text: #2980b9;
 
 			/* Info Panel */
-			--pf-port-item-bg: #f8f9fa;
+			--pf-port-item-bg: var(--theme-color-background-secondary, #f8f9fa);
 
 			/* Toolbar */
-			--pf-toolbar-bg: #ffffff;
+			--pf-toolbar-bg: var(--theme-color-background-panel, #ffffff);
 			--pf-toolbar-border: var(--theme-color-border-default, #e0e0e0);
 
 			/* Palette Cards */
-			--pf-card-border: #d5d8dc;
-			--pf-card-hover-bg: #eaf2f8;
+			--pf-card-border: var(--theme-color-border-default, #d5d8dc);
+			--pf-card-hover-bg: var(--theme-color-background-hover, #eaf2f8);
 			--pf-card-hover-shadow: 0 1px 3px rgba(52, 152, 219, 0.15);
 
 			/* Canvas */
-			--pf-canvas-bg: #fafafa;
+			--pf-canvas-bg: var(--theme-color-background-secondary, #fafafa);
 			--pf-grid-stroke: var(--theme-color-border-light, #e8e8e8);
 
 			position: relative;
@@ -329,6 +363,94 @@ class PictProviderFlowCSS extends libFableServiceProviderBase
 			fill: var(--pf-node-halt-fill);
 			stroke: var(--pf-node-halt-stroke);
 			stroke-width: 1.5;
+		}
+
+		/* ── Color-role variants ────────────────────────────────
+		   Cards opt into a role via ColorRole on the node-type config or
+		   a per-node override. The renderer adds .pict-flow-node-color-{role}
+		   to the node group, which pulls fill/stroke/title-bar colors from
+		   the --pf-color-* tokens — those in turn track the host's
+		   --theme-color-* tokens so light/dark/palette swaps propagate.
+
+		   Roles deliberately don't override .pict-flow-node-body-content-*
+		   styling — the body content's visual identity is the consumer's
+		   responsibility. */
+		.pict-flow-node-color-success .pict-flow-node-body {
+			fill: var(--pf-color-success-soft);
+			stroke: var(--pf-color-success);
+			stroke-width: 1.5;
+		}
+		.pict-flow-node-color-success .pict-flow-node-title-bar,
+		.pict-flow-node-color-success .pict-flow-node-title-bar-bottom {
+			fill: var(--pf-color-success);
+		}
+		.pict-flow-node-color-success .pict-flow-node-bracket {
+			stroke: var(--pf-color-success);
+		}
+
+		.pict-flow-node-color-warning .pict-flow-node-body {
+			fill: var(--pf-color-warning-soft);
+			stroke: var(--pf-color-warning);
+			stroke-width: 1.5;
+		}
+		.pict-flow-node-color-warning .pict-flow-node-title-bar,
+		.pict-flow-node-color-warning .pict-flow-node-title-bar-bottom {
+			fill: var(--pf-color-warning);
+		}
+		.pict-flow-node-color-warning .pict-flow-node-bracket {
+			stroke: var(--pf-color-warning);
+		}
+
+		.pict-flow-node-color-error .pict-flow-node-body {
+			fill: var(--pf-color-error-soft);
+			stroke: var(--pf-color-error);
+			stroke-width: 1.5;
+		}
+		.pict-flow-node-color-error .pict-flow-node-title-bar,
+		.pict-flow-node-color-error .pict-flow-node-title-bar-bottom {
+			fill: var(--pf-color-error);
+		}
+		.pict-flow-node-color-error .pict-flow-node-bracket {
+			stroke: var(--pf-color-error);
+		}
+
+		.pict-flow-node-color-info .pict-flow-node-body {
+			fill: var(--pf-color-info-soft);
+			stroke: var(--pf-color-info);
+			stroke-width: 1.5;
+		}
+		.pict-flow-node-color-info .pict-flow-node-title-bar,
+		.pict-flow-node-color-info .pict-flow-node-title-bar-bottom {
+			fill: var(--pf-color-info);
+		}
+		.pict-flow-node-color-info .pict-flow-node-bracket {
+			stroke: var(--pf-color-info);
+		}
+
+		.pict-flow-node-color-accent .pict-flow-node-body {
+			fill: var(--pf-color-accent-soft);
+			stroke: var(--pf-color-accent);
+			stroke-width: 1.5;
+		}
+		.pict-flow-node-color-accent .pict-flow-node-title-bar,
+		.pict-flow-node-color-accent .pict-flow-node-title-bar-bottom {
+			fill: var(--pf-color-accent);
+		}
+		.pict-flow-node-color-accent .pict-flow-node-bracket {
+			stroke: var(--pf-color-accent);
+		}
+
+		.pict-flow-node-color-neutral .pict-flow-node-body {
+			fill: var(--pf-color-neutral-soft);
+			stroke: var(--pf-color-neutral);
+			stroke-width: 1;
+		}
+		.pict-flow-node-color-neutral .pict-flow-node-title-bar,
+		.pict-flow-node-color-neutral .pict-flow-node-title-bar-bottom {
+			fill: var(--pf-color-neutral);
+		}
+		.pict-flow-node-color-neutral .pict-flow-node-bracket {
+			stroke: var(--pf-color-neutral);
 		}
 		`;
 	}
@@ -588,6 +710,34 @@ class PictProviderFlowCSS extends libFableServiceProviderBase
 	getConnectionCSS()
 	{
 		return /*css*/`
+		/* Arrowhead markers use CSS-driven fills so they follow --pf-* tokens
+		   (which in turn map to host --theme-color-* tokens). The polygon's
+		   fill attribute is the fallback when CSS does not reach the marker. */
+		.pict-flow-svg .pict-flow-arrowhead-default {
+			fill: var(--pf-connection-stroke);
+		}
+		.pict-flow-svg .pict-flow-arrowhead-selected {
+			fill: var(--pf-connection-selected-stroke);
+		}
+		.pict-flow-svg .pict-flow-arrowhead-tether {
+			fill: var(--pf-connection-stroke);
+		}
+		.pict-flow-svg .pict-flow-arrowhead-event-in {
+			fill: var(--pf-connection-event-in-stroke);
+		}
+		.pict-flow-svg .pict-flow-arrowhead-event-out {
+			fill: var(--pf-connection-event-out-stroke);
+		}
+		.pict-flow-svg .pict-flow-arrowhead-setting {
+			fill: var(--pf-connection-setting-stroke);
+		}
+		.pict-flow-svg .pict-flow-arrowhead-value {
+			fill: var(--pf-connection-value-stroke);
+		}
+		.pict-flow-svg .pict-flow-arrowhead-error {
+			fill: var(--pf-connection-error-stroke);
+		}
+
 		.pict-flow-connection {
 			fill: none;
 			stroke: var(--pf-connection-stroke);

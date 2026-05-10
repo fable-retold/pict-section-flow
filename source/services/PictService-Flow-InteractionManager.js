@@ -104,61 +104,58 @@ class PictServiceFlowInteractionManager extends libFableServiceProviderBase
 
 		if (!this._SVGElement) return;
 
-		// Use pointer events for unified mouse/touch handling
-		this._SVGElement.addEventListener('pointerdown', this._boundOnPointerDown);
-		this._SVGElement.addEventListener('pointermove', this._boundOnPointerMove);
-		this._SVGElement.addEventListener('pointerup', this._boundOnPointerUp);
-		this._SVGElement.addEventListener('pointerleave', this._boundOnPointerUp);
-		this._SVGElement.addEventListener('wheel', this._boundOnWheel, { passive: false });
-
-		// Keyboard events for delete
+		// Pointer/wheel/contextmenu live as inline attributes on the SVG
+		// template (see Flow-Container-Template in PictView-Flow.js); they
+		// route to InteractionManager via the FlowView's bridges. The
+		// keydown listener stays document-level because keyboard input
+		// has no element-level inline equivalent for the canvas-as-a-whole.
 		document.addEventListener('keydown', this._boundOnKeyDown);
-
-		// Handle right-click: add/remove bezier handles on connections
-		this._SVGElement.addEventListener('contextmenu', (pEvent) =>
-		{
-			pEvent.preventDefault();
-
-			let tmpTarget = pEvent.target;
-			let tmpElementType = this._getElementType(tmpTarget);
-
-			switch (tmpElementType)
-			{
-				case 'connection':
-				case 'connection-hitarea':
-					this._addBezierHandle(tmpTarget, pEvent);
-					break;
-
-				case 'connection-handle':
-					this._removeBezierHandle(tmpTarget);
-					break;
-
-				case 'tether':
-				case 'tether-hitarea':
-					this._addTetherBezierHandle(tmpTarget, pEvent);
-					break;
-
-				case 'tether-handle':
-					this._removeTetherBezierHandle(tmpTarget);
-					break;
-			}
-		});
 	}
 
 	/**
-	 * Remove all event listeners
+	 * Inline-handler bridge — invoked from the SVG template's
+	 * `oncontextmenu` attribute. Prevents the browser context menu and
+	 * dispatches to the right bezier-handle action based on what was
+	 * right-clicked.
+	 *
+	 * @param {Event} pEvent
+	 */
+	handleContextMenu(pEvent)
+	{
+		pEvent.preventDefault();
+
+		let tmpTarget = pEvent.target;
+		let tmpElementType = this._getElementType(tmpTarget);
+
+		switch (tmpElementType)
+		{
+			case 'connection':
+			case 'connection-hitarea':
+				this._addBezierHandle(tmpTarget, pEvent);
+				break;
+
+			case 'connection-handle':
+				this._removeBezierHandle(tmpTarget);
+				break;
+
+			case 'tether':
+			case 'tether-hitarea':
+				this._addTetherBezierHandle(tmpTarget, pEvent);
+				break;
+
+			case 'tether-handle':
+				this._removeTetherBezierHandle(tmpTarget);
+				break;
+		}
+	}
+
+	/**
+	 * Remove all event listeners. Pointer/wheel/contextmenu listeners live
+	 * as inline template attributes and don't need explicit teardown — they
+	 * disappear with the SVG element when the FlowView is destroyed.
 	 */
 	destroy()
 	{
-		if (this._SVGElement)
-		{
-			this._SVGElement.removeEventListener('pointerdown', this._boundOnPointerDown);
-			this._SVGElement.removeEventListener('pointermove', this._boundOnPointerMove);
-			this._SVGElement.removeEventListener('pointerup', this._boundOnPointerUp);
-			this._SVGElement.removeEventListener('pointerleave', this._boundOnPointerUp);
-			this._SVGElement.removeEventListener('wheel', this._boundOnWheel);
-		}
-
 		document.removeEventListener('keydown', this._boundOnKeyDown);
 	}
 

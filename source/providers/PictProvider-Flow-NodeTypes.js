@@ -1,5 +1,10 @@
 const libPictProvider = require('pict-provider');
 
+// Built-in node types reference theme-aware roles via `ColorRole`. The
+// hex `TitleBarColor` / `BodyStyle` values remain as fallbacks for
+// rendering paths that bypass CSS (legacy consumers, exports). When a
+// role is set, the renderer skips applying those hex attributes — the
+// role's CSS class drives the visuals so theme swaps propagate.
 const _DefaultNodeTypes =
 {
 	'default':
@@ -13,6 +18,7 @@ const _DefaultNodeTypes =
 			{ Hash: null, Direction: 'input', Side: 'left', Label: 'In' },
 			{ Hash: null, Direction: 'output', Side: 'right', Label: 'Out' }
 		],
+		ColorRole: 'neutral',
 		TitleBarColor: '#2c3e50',
 		BodyStyle: {}
 	},
@@ -26,6 +32,7 @@ const _DefaultNodeTypes =
 		[
 			{ Hash: null, Direction: 'output', Side: 'right', Label: 'Out' }
 		],
+		ColorRole: 'success',
 		TitleBarColor: '#27ae60',
 		BodyStyle:
 		{
@@ -43,6 +50,7 @@ const _DefaultNodeTypes =
 		[
 			{ Hash: null, Direction: 'input', Side: 'left', Label: 'In' }
 		],
+		ColorRole: 'accent',
 		TitleBarColor: '#1abc9c',
 		BodyStyle:
 		{
@@ -60,6 +68,7 @@ const _DefaultNodeTypes =
 		[
 			{ Hash: null, Direction: 'input', Side: 'left', Label: 'In' }
 		],
+		ColorRole: 'error',
 		TitleBarColor: '#e74c3c',
 		BodyStyle:
 		{
@@ -79,6 +88,7 @@ const _DefaultNodeTypes =
 			{ Hash: null, Direction: 'output', Side: 'right', Label: 'Yes' },
 			{ Hash: null, Direction: 'output', Side: 'bottom', Label: 'No' }
 		],
+		ColorRole: 'warning',
 		TitleBarColor: '#f39c12',
 		BodyStyle:
 		{

@@ -50,7 +50,11 @@ class PictProviderFlowPanelChrome extends libFableServiceProviderBase
 		let tmpPict = this._FlowView.pict || this._FlowView.fable;
 		let tmpTitle = pPanelData.Title || 'Properties';
 		let tmpChromeHTML = tmpPict.parseTemplateByHash('Flow-PanelChrome-Template',
-			{ Hash: pPanelData.Hash, Title: tmpTitle });
+			{
+				Hash: pPanelData.Hash,
+				Title: tmpTitle,
+				FlowViewIdentifier: this._FlowView.options.ViewIdentifier
+			});
 
 		tmpFO.innerHTML = tmpChromeHTML;
 
@@ -65,22 +69,8 @@ class PictProviderFlowPanelChrome extends libFableServiceProviderBase
 			tmpCloseIcon.textContent = '\u2715';
 		}
 
-		// Attach event isolation to the scrollable content area so
-		// pointer/wheel events inside the panel do not trigger SVG interactions
-		let tmpContent = tmpFO.querySelector('.pict-flow-panel-content');
-		if (tmpContent)
-		{
-			tmpContent.addEventListener('pointerdown', (pEvent) => { pEvent.stopPropagation(); });
-			tmpContent.addEventListener('wheel', (pEvent) => { pEvent.stopPropagation(); });
-		}
-
-		// Isolate events on the tab bar
-		let tmpTabbar = tmpFO.querySelector('.pict-flow-panel-tabbar');
-		if (tmpTabbar)
-		{
-			tmpTabbar.addEventListener('pointerdown', (pEvent) => { pEvent.stopPropagation(); });
-			tmpTabbar.addEventListener('wheel', (pEvent) => { pEvent.stopPropagation(); });
-		}
+		// Pointer/wheel isolation lives on the inline onpointerdown/onwheel
+		// attributes in Flow-PanelChrome-Template — see PictView-Flow.js.
 
 		pPanelsLayer.appendChild(tmpFO);
 

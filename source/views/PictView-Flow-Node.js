@@ -40,6 +40,18 @@ class PictViewFlowNode extends libPictView
 			if (pNodeTypeConfig.PortLabelsOnHover) tmpClassList += ' pict-flow-node-port-labels-hover';
 			if (pNodeTypeConfig.PortLabelsVertical) tmpClassList += ' pict-flow-node-port-labels-vertical';
 		}
+
+		// Resolve theme-aware ColorRole. Per-node override wins; falls back
+		// to the node type's role. A role of 'none' (or empty string)
+		// explicitly opts out — useful when a card wants to keep its
+		// hex BodyStyle/TitleBarColor regardless of the host theme.
+		let tmpColorRole = (typeof pNodeData.ColorRole !== 'undefined')
+			? pNodeData.ColorRole
+			: (pNodeTypeConfig && pNodeTypeConfig.ColorRole);
+		if (tmpColorRole && tmpColorRole !== 'none')
+		{
+			tmpClassList += ' pict-flow-node-color-' + tmpColorRole;
+		}
 		tmpGroup.setAttribute('class', tmpClassList);
 		tmpGroup.setAttribute('transform', `translate(${pNodeData.X}, ${pNodeData.Y})`);
 		tmpGroup.setAttribute('data-node-hash', pNodeData.Hash);
@@ -430,9 +442,10 @@ class PictViewFlowNode extends libPictView
 		tmpDiv.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
 		tmpDiv.setAttribute('class', 'pict-flow-node-body-content-html');
 
-		// Pointer event isolation — prevent node drag/canvas pan
-		tmpDiv.addEventListener('pointerdown', (pEvent) => { pEvent.stopPropagation(); });
-		tmpDiv.addEventListener('wheel', (pEvent) => { pEvent.stopPropagation(); });
+		// Pointer event isolation — prevent node drag/canvas pan.
+		// Inline attribute handlers (visible in DOM, no closure leak).
+		tmpDiv.setAttribute('onpointerdown', 'event.stopPropagation()');
+		tmpDiv.setAttribute('onwheel', 'event.stopPropagation()');
 
 		// Render template content
 		let tmpRenderedContent = this._resolveBodyTemplate(pBodyContent, pNodeData, pPict);
@@ -471,9 +484,9 @@ class PictViewFlowNode extends libPictView
 		tmpCanvas.style.width = '100%';
 		tmpCanvas.style.height = '100%';
 
-		// Pointer event isolation
-		tmpCanvas.addEventListener('pointerdown', (pEvent) => { pEvent.stopPropagation(); });
-		tmpCanvas.addEventListener('wheel', (pEvent) => { pEvent.stopPropagation(); });
+		// Pointer event isolation — inline attribute handlers.
+		tmpCanvas.setAttribute('onpointerdown', 'event.stopPropagation()');
+		tmpCanvas.setAttribute('onwheel', 'event.stopPropagation()');
 
 		// Invoke render callback (the primary rendering path for canvas)
 		if (typeof pBodyContent.RenderCallback === 'function')

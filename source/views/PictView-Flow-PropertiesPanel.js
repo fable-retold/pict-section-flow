@@ -74,7 +74,17 @@ const _DefaultConfiguration =
 		},
 		{
 			Hash: 'Flow-NodeProps-Editor',
-			Template: '<div class="pict-flow-node-props-fields"><div class="pict-flow-node-props-field"><label class="pict-flow-node-props-label">Title</label><input type="text" class="pict-flow-node-props-input" data-prop="Title" value="{~D:Record.Title~}" /></div><div class="pict-flow-node-props-field"><label class="pict-flow-node-props-label">Width</label><input type="number" class="pict-flow-node-props-input" data-prop="Width" value="{~D:Record.Width~}" min="60" step="10" /></div><div class="pict-flow-node-props-field"><label class="pict-flow-node-props-label">Height</label><input type="number" class="pict-flow-node-props-input" data-prop="Height" value="{~D:Record.Height~}" min="40" step="10" /></div><div class="pict-flow-node-props-field"><label class="pict-flow-node-props-label">Body Fill</label><input type="color" class="pict-flow-node-props-input pict-flow-node-props-color" data-prop="Style.BodyFill" value="{~D:Record.BodyFillValue~}" /></div><div class="pict-flow-node-props-field"><label class="pict-flow-node-props-label">Body Stroke</label><input type="color" class="pict-flow-node-props-input pict-flow-node-props-color" data-prop="Style.BodyStroke" value="{~D:Record.BodyStrokeValue~}" /></div><div class="pict-flow-node-props-field"><label class="pict-flow-node-props-label">Stroke Width</label><input type="number" class="pict-flow-node-props-input" data-prop="Style.BodyStrokeWidth" value="{~D:Record.BodyStrokeWidthValue~}" min="0" max="10" step="0.5" /></div><div class="pict-flow-node-props-field"><label class="pict-flow-node-props-label">Title Bar</label><input type="color" class="pict-flow-node-props-input pict-flow-node-props-color" data-prop="Style.TitleBarColor" value="{~D:Record.TitleBarColorValue~}" /></div></div>'
+			// Inline oninput/onpointerdown wired to the FlowView's helper —
+			// see PictViewFlow._applyNodePropChange / _stopEvent.
+			Template: '<div class="pict-flow-node-props-fields" data-flow-view="{~D:Record.FlowViewIdentifier~}" data-node-hash="{~D:Record.NodeHash~}">'
+				+ '<div class="pict-flow-node-props-field"><label class="pict-flow-node-props-label">Title</label><input type="text" class="pict-flow-node-props-input" data-prop="Title" value="{~D:Record.Title~}" oninput="_Pict.views[\'{~D:Record.FlowViewIdentifier~}\']._applyNodePropChange(\'{~D:Record.NodeHash~}\', this.getAttribute(\'data-prop\'), this.value, this.type, event)" onpointerdown="event.stopPropagation()" /></div>'
+				+ '<div class="pict-flow-node-props-field"><label class="pict-flow-node-props-label">Width</label><input type="number" class="pict-flow-node-props-input" data-prop="Width" value="{~D:Record.Width~}" min="60" step="10" oninput="_Pict.views[\'{~D:Record.FlowViewIdentifier~}\']._applyNodePropChange(\'{~D:Record.NodeHash~}\', this.getAttribute(\'data-prop\'), this.value, this.type, event)" onpointerdown="event.stopPropagation()" /></div>'
+				+ '<div class="pict-flow-node-props-field"><label class="pict-flow-node-props-label">Height</label><input type="number" class="pict-flow-node-props-input" data-prop="Height" value="{~D:Record.Height~}" min="40" step="10" oninput="_Pict.views[\'{~D:Record.FlowViewIdentifier~}\']._applyNodePropChange(\'{~D:Record.NodeHash~}\', this.getAttribute(\'data-prop\'), this.value, this.type, event)" onpointerdown="event.stopPropagation()" /></div>'
+				+ '<div class="pict-flow-node-props-field"><label class="pict-flow-node-props-label">Body Fill</label><input type="color" class="pict-flow-node-props-input pict-flow-node-props-color" data-prop="Style.BodyFill" value="{~D:Record.BodyFillValue~}" oninput="_Pict.views[\'{~D:Record.FlowViewIdentifier~}\']._applyNodePropChange(\'{~D:Record.NodeHash~}\', this.getAttribute(\'data-prop\'), this.value, this.type, event)" onpointerdown="event.stopPropagation()" /></div>'
+				+ '<div class="pict-flow-node-props-field"><label class="pict-flow-node-props-label">Body Stroke</label><input type="color" class="pict-flow-node-props-input pict-flow-node-props-color" data-prop="Style.BodyStroke" value="{~D:Record.BodyStrokeValue~}" oninput="_Pict.views[\'{~D:Record.FlowViewIdentifier~}\']._applyNodePropChange(\'{~D:Record.NodeHash~}\', this.getAttribute(\'data-prop\'), this.value, this.type, event)" onpointerdown="event.stopPropagation()" /></div>'
+				+ '<div class="pict-flow-node-props-field"><label class="pict-flow-node-props-label">Stroke Width</label><input type="number" class="pict-flow-node-props-input" data-prop="Style.BodyStrokeWidth" value="{~D:Record.BodyStrokeWidthValue~}" min="0" max="10" step="0.5" oninput="_Pict.views[\'{~D:Record.FlowViewIdentifier~}\']._applyNodePropChange(\'{~D:Record.NodeHash~}\', this.getAttribute(\'data-prop\'), this.value, this.type, event)" onpointerdown="event.stopPropagation()" /></div>'
+				+ '<div class="pict-flow-node-props-field"><label class="pict-flow-node-props-label">Title Bar</label><input type="color" class="pict-flow-node-props-input pict-flow-node-props-color" data-prop="Style.TitleBarColor" value="{~D:Record.TitleBarColorValue~}" oninput="_Pict.views[\'{~D:Record.FlowViewIdentifier~}\']._applyNodePropChange(\'{~D:Record.NodeHash~}\', this.getAttribute(\'data-prop\'), this.value, this.type, event)" onpointerdown="event.stopPropagation()" /></div>'
+				+ '</div>'
 		}
 	]
 };
@@ -216,12 +226,11 @@ class PictViewFlowPropertiesPanel extends libPictView
 		let tmpFO = pPanelsLayer.querySelector(`[data-panel-hash="${pPanelData.Hash}"]`);
 		if (tmpFO)
 		{
-			// Render appearance and help tabs
+			// Render appearance and help tabs. Tab-switching click handlers
+			// are inline `onclick=` attributes in Flow-PanelChrome-Template
+			// that call FlowView._handlePanelTabClick → switchPanelTab.
 			this._renderAppearanceTab(pPanelData, tmpFO);
 			this._renderHelpTab(pPanelData, tmpFO);
-
-			// Wire up tab switching
-			this._wireTabSwitching(tmpFO);
 		}
 	}
 
@@ -559,27 +568,16 @@ class PictViewFlowPropertiesPanel extends libPictView
 			BodyFillValue: tmpStyle.BodyFill || tmpDefaultBodyFill,
 			BodyStrokeValue: tmpStyle.BodyStroke || tmpDefaultBodyStroke,
 			BodyStrokeWidthValue: tmpStyle.BodyStrokeWidth || 1,
-			TitleBarColorValue: tmpStyle.TitleBarColor || tmpDefaultTitleBarColor
+			TitleBarColorValue: tmpStyle.TitleBarColor || tmpDefaultTitleBarColor,
+			NodeHash: pPanelData.NodeHash,
+			FlowViewIdentifier: this._FlowView.options.ViewIdentifier
 		};
 
-		tmpAppearancePane.innerHTML = this.pict.parseTemplateByHash('Flow-NodeProps-Editor', tmpRecord);
-
-		// Wire up live change handlers on all input fields
-		let tmpInputs = tmpAppearancePane.querySelectorAll('.pict-flow-node-props-input');
-		for (let i = 0; i < tmpInputs.length; i++)
-		{
-			let tmpInput = tmpInputs[i];
-			let tmpProp = tmpInput.getAttribute('data-prop');
-
-			tmpInput.addEventListener('input', (pEvent) =>
-			{
-				pEvent.stopPropagation();
-				this._applyNodePropChange(pPanelData.NodeHash, tmpProp, tmpInput.value, tmpInput.type);
-			});
-
-			// Prevent pointer events from propagating to SVG drag handler
-			tmpInput.addEventListener('pointerdown', (pEvent) => { pEvent.stopPropagation(); });
-		}
+		// Inputs in the rendered template carry inline oninput/onpointerdown
+		// handlers that call the FlowView's _applyNodePropChange — no
+		// addEventListener wiring needed here.
+		this.pict.ContentAssignment.assignContent(tmpAppearancePane,
+			this.pict.parseTemplateByHash('Flow-NodeProps-Editor', tmpRecord));
 	}
 
 	/**
@@ -619,42 +617,37 @@ class PictViewFlowPropertiesPanel extends libPictView
 	}
 
 	/**
-	 * Wire up tab switching on all tab buttons within a panel foreignObject.
+	 * Switch the visible tab pane within a panel foreignObject. Invoked
+	 * from the inline `onclick` handler on tab buttons in
+	 * Flow-PanelChrome-Template via FlowView._handlePanelTabClick.
 	 *
-	 * @param {Element} pForeignObject - The panel's SVG foreignObject element
+	 * @param {Element} pTabElement - The clicked tab button
 	 */
-	_wireTabSwitching(pForeignObject)
+	switchPanelTab(pTabElement)
 	{
-		let tmpTabs = pForeignObject.querySelectorAll('.pict-flow-panel-tab');
-		let tmpPanes = pForeignObject.querySelectorAll('.pict-flow-panel-tab-pane');
+		let tmpForeignObject = pTabElement.closest('foreignObject');
+		if (!tmpForeignObject) return;
+
+		let tmpTarget = pTabElement.getAttribute('data-tab-target');
+		let tmpTabs = tmpForeignObject.querySelectorAll('.pict-flow-panel-tab');
+		let tmpPanes = tmpForeignObject.querySelectorAll('.pict-flow-panel-tab-pane');
 
 		for (let i = 0; i < tmpTabs.length; i++)
 		{
-			tmpTabs[i].addEventListener('click', (pEvent) =>
-			{
-				pEvent.stopPropagation();
-				let tmpTarget = pEvent.currentTarget.getAttribute('data-tab-target');
+			tmpTabs[i].classList.remove('active');
+		}
+		for (let i = 0; i < tmpPanes.length; i++)
+		{
+			tmpPanes[i].classList.remove('active');
+			tmpPanes[i].style.display = 'none';
+		}
 
-				// Deactivate all tabs and panes
-				for (let j = 0; j < tmpTabs.length; j++)
-				{
-					tmpTabs[j].classList.remove('active');
-				}
-				for (let j = 0; j < tmpPanes.length; j++)
-				{
-					tmpPanes[j].classList.remove('active');
-					tmpPanes[j].style.display = 'none';
-				}
-
-				// Activate the selected tab and pane
-				pEvent.currentTarget.classList.add('active');
-				let tmpTargetPane = pForeignObject.querySelector('.pict-flow-panel-tab-pane[data-tab="' + tmpTarget + '"]');
-				if (tmpTargetPane)
-				{
-					tmpTargetPane.classList.add('active');
-					tmpTargetPane.style.display = 'block';
-				}
-			});
+		pTabElement.classList.add('active');
+		let tmpTargetPane = tmpForeignObject.querySelector('.pict-flow-panel-tab-pane[data-tab="' + tmpTarget + '"]');
+		if (tmpTargetPane)
+		{
+			tmpTargetPane.classList.add('active');
+			tmpTargetPane.style.display = 'block';
 		}
 	}
 
