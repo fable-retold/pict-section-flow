@@ -37,6 +37,14 @@ class PictServiceFlowRenderManager extends libFableServiceProviderBase
 		{
 			this._FlowView._ConnectionsLayer.removeChild(this._FlowView._ConnectionsLayer.firstChild);
 		}
+		if (this._FlowView._EndpointsLayer)
+		{
+			while (this._FlowView._EndpointsLayer.firstChild) this._FlowView._EndpointsLayer.removeChild(this._FlowView._EndpointsLayer.firstChild);
+		}
+		if (this._FlowView._PortHintsLayer)
+		{
+			while (this._FlowView._PortHintsLayer.firstChild) this._FlowView._PortHintsLayer.removeChild(this._FlowView._PortHintsLayer.firstChild);
+		}
 
 		// Render connections first (behind nodes)
 		for (let i = 0; i < this._FlowView._FlowData.Connections.length; i++)
@@ -112,12 +120,10 @@ class PictServiceFlowRenderManager extends libFableServiceProviderBase
 	{
 		if (!this._FlowView || !this._FlowView._ConnectionsLayer) return;
 
-		// Remove existing elements for this connection
-		let tmpExisting = this._FlowView._ConnectionsLayer.querySelectorAll(`[data-connection-hash="${pConnectionHash}"]`);
-		for (let i = 0; i < tmpExisting.length; i++)
-		{
-			tmpExisting[i].remove();
-		}
+		// Remove existing elements for this connection across all layers
+		// where it might live (path / hit-area in connections, dots in
+		// endpoints, hint paths in port-hints).
+		this._removeConnectionElements(pConnectionHash);
 
 		let tmpConnection = this._FlowView.getConnection(pConnectionHash);
 		if (!tmpConnection) return;
@@ -208,15 +214,39 @@ class PictServiceFlowRenderManager extends libFableServiceProviderBase
 			let tmpConn = tmpAffectedConnections[i];
 			let tmpIsSelected = (this._FlowView._FlowData.ViewState.SelectedConnectionHash === tmpConn.Hash);
 
-			// Remove existing connection SVG elements
-			let tmpExisting = this._FlowView._ConnectionsLayer.querySelectorAll(`[data-connection-hash="${tmpConn.Hash}"]`);
+			// Remove existing connection SVG elements across all layers
+			this._removeConnectionElements(tmpConn.Hash);
+
+			// Re-render this connection
+			this._FlowView._ConnectionRenderer.renderConnection(tmpConn, this._FlowView._ConnectionsLayer, tmpIsSelected);
+		}
+	}
+
+	/**
+	 * Remove every SVG element tagged with `data-connection-hash="<hash>"`
+	 * from any of the layers a connection might write into (connections,
+	 * endpoints, port-hints). Centralised so per-connection re-render
+	 * paths stay in sync with whatever layers ConnectionRenderer touches.
+	 *
+	 * @param {string} pConnectionHash
+	 */
+	_removeConnectionElements(pConnectionHash)
+	{
+		let tmpLayers =
+		[
+			this._FlowView._ConnectionsLayer,
+			this._FlowView._EndpointsLayer,
+			this._FlowView._PortHintsLayer
+		];
+		for (let i = 0; i < tmpLayers.length; i++)
+		{
+			let tmpLayer = tmpLayers[i];
+			if (!tmpLayer) continue;
+			let tmpExisting = tmpLayer.querySelectorAll(`[data-connection-hash="${pConnectionHash}"]`);
 			for (let j = 0; j < tmpExisting.length; j++)
 			{
 				tmpExisting[j].remove();
 			}
-
-			// Re-render this connection
-			this._FlowView._ConnectionRenderer.renderConnection(tmpConn, this._FlowView._ConnectionsLayer, tmpIsSelected);
 		}
 	}
 

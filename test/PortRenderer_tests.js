@@ -163,8 +163,17 @@ suite
 
 						_PortRenderer.renderPorts(tmpNodeData, tmpGroup, 180, 80, null, 22);
 
-						// Should have badge bg, border path, stripe, circle, text = 5 elements
-						libExpect(tmpGroup._children.length).to.equal(5);
+						// Direct children: badge wrapper <g> (containing bg + border + stripe),
+						// port circle, text label = 3 elements.
+						libExpect(tmpGroup._children.length).to.equal(3);
+
+						// The badge wrapper itself contains the 3 sub-elements.
+						let tmpBadgeGroups = tmpGroup._children.filter(function (pChild)
+						{
+							return pChild._tag === 'g';
+						});
+						libExpect(tmpBadgeGroups.length).to.equal(1);
+						libExpect(tmpBadgeGroups[0]._children.length).to.equal(3);
 
 						// Verify text element exists with correct content
 						let tmpTextEls = tmpGroup._children.filter(function (pChild)

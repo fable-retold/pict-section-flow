@@ -45,6 +45,14 @@ class PictViewFlowNode extends libPictView
 		tmpGroup.setAttribute('data-node-hash', pNodeData.Hash);
 		tmpGroup.setAttribute('data-element-type', 'node');
 
+		// Hover the whole node → activate every port-hint that points
+		// at any of this node's ports. Lets the user see *all* of the
+		// node's reroute lines at once, not just one badge at a time.
+		if (this._FlowView._PortRenderer && typeof this._FlowView._PortRenderer._wirePortHintHover === 'function')
+		{
+			this._FlowView._PortRenderer._wirePortHintHover(tmpGroup, null, pNodeData.Hash);
+		}
+
 		let tmpWidth = pNodeData.Width || 180;
 		let tmpHeight = pNodeData.Height || 80;
 		let tmpTitleBarHeight = this.options.NodeTitleBarHeight;
@@ -529,6 +537,17 @@ class PictViewFlowNode extends libPictView
 			}
 		}
 
+		// Per-node BodyStyle override (wins over the node-type default).
+		// Lets a flow author paint individual cards distinctly without
+		// registering a new node type per category.
+		if (pNodeData.BodyStyle)
+		{
+			for (let tmpStyleKey in pNodeData.BodyStyle)
+			{
+				tmpBody.setAttribute(tmpStyleKey, pNodeData.BodyStyle[tmpStyleKey]);
+			}
+		}
+
 		// Apply per-instance style overrides (for node-specific editing)
 		// These must be applied as inline styles so they override CSS rules
 		// (CSS declarations take precedence over SVG presentation attributes).
@@ -561,6 +580,11 @@ class PictViewFlowNode extends libPictView
 		{
 			tmpTitleBar.setAttribute('fill', pNodeTypeConfig.TitleBarColor);
 		}
+		// Per-node TitleBarColor (wins over node-type default).
+		if (pNodeData.TitleBarColor)
+		{
+			tmpTitleBar.setAttribute('fill', pNodeData.TitleBarColor);
+		}
 
 		pGroup.appendChild(tmpTitleBar);
 
@@ -577,6 +601,10 @@ class PictViewFlowNode extends libPictView
 		if (pNodeTypeConfig && pNodeTypeConfig.TitleBarColor)
 		{
 			tmpTitleBarBottom.setAttribute('fill', pNodeTypeConfig.TitleBarColor);
+		}
+		if (pNodeData.TitleBarColor)
+		{
+			tmpTitleBarBottom.setAttribute('fill', pNodeData.TitleBarColor);
 		}
 
 		// Per-instance title bar color override

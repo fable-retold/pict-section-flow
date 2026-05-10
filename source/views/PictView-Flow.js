@@ -59,6 +59,7 @@ const _DefaultConfiguration =
 	EnableConnectionCreation: true,
 	EnableGridSnap: false,
 	GridSnapSize: 20,
+	EnableLayoutMenu: true,
 
 	MinZoom: 0.1,
 	MaxZoom: 5.0,
@@ -67,6 +68,16 @@ const _DefaultConfiguration =
 	DefaultNodeType: 'default',
 	DefaultNodeWidth: 180,
 	DefaultNodeHeight: 80,
+
+	// Layout-algorithm subsystem defaults
+	DefaultLayoutAlgorithm: 'Custom',
+	DefaultLayoutParameters: {},
+	DefaultLayoutAutoApply: false,
+
+	// Edge-theme subsystem defaults — null = inherit from active layout's
+	// `DefaultEdgeTheme` field, with hard fallback to 'Bezier'.
+	DefaultEdgeTheme: null,
+	DefaultEdgeThemeParameters: {},
 
 	CSS: false,
 
@@ -99,6 +110,8 @@ const _DefaultConfiguration =
 			<g class="pict-flow-viewport" id="Flow-Viewport-{~D:Record.ViewIdentifier~}">
 				<g class="pict-flow-connections-layer" id="Flow-Connections-{~D:Record.ViewIdentifier~}"></g>
 				<g class="pict-flow-nodes-layer" id="Flow-Nodes-{~D:Record.ViewIdentifier~}"></g>
+				<g class="pict-flow-endpoints-layer" id="Flow-Endpoints-{~D:Record.ViewIdentifier~}"></g>
+				<g class="pict-flow-port-hints-layer" id="Flow-PortHints-{~D:Record.ViewIdentifier~}"></g>
 				<g class="pict-flow-tethers-layer" id="Flow-Tethers-{~D:Record.ViewIdentifier~}"></g>
 				<g class="pict-flow-panels-layer" id="Flow-Panels-{~D:Record.ViewIdentifier~}"></g>
 			</g>
@@ -195,13 +208,24 @@ class PictViewFlow extends libPictView
 				SelectedNodeHash: null,
 				SelectedConnectionHash: null,
 				SelectedTetherHash: null
-			}
+			},
+			LayoutAlgorithm: this.options.DefaultLayoutAlgorithm || 'Custom',
+			LayoutParameters: JSON.parse(JSON.stringify(this.options.DefaultLayoutParameters || {})),
+			LayoutAutoApply: !!this.options.DefaultLayoutAutoApply,
+			EdgeTheme: this.options.DefaultEdgeTheme || null,
+			EdgeThemeParameters: JSON.parse(JSON.stringify(this.options.DefaultEdgeThemeParameters || {}))
 		};
+
+		// Re-entrancy guard for the auto-apply event handler
+		this._AutoApplyInProgress = false;
+		this._AutoApplyHandlerHashes = [];
 
 		this._SVGElement = null;
 		this._ViewportElement = null;
 		this._NodesLayer = null;
 		this._ConnectionsLayer = null;
+		this._EndpointsLayer = null;
+		this._PortHintsLayer = null;
 		this._TethersLayer = null;
 		this._PanelsLayer = null;
 
@@ -371,6 +395,18 @@ class PictViewFlow extends libPictView
 			this._ConnectionsLayer = tmpConnectionsElements[0];
 		}
 
+		let tmpEndpointsElements = this.pict.ContentAssignment.getElement(`#Flow-Endpoints-${tmpViewIdentifier}`);
+		if (tmpEndpointsElements.length > 0)
+		{
+			this._EndpointsLayer = tmpEndpointsElements[0];
+		}
+
+		let tmpPortHintsElements = this.pict.ContentAssignment.getElement(`#Flow-PortHints-${tmpViewIdentifier}`);
+		if (tmpPortHintsElements.length > 0)
+		{
+			this._PortHintsLayer = tmpPortHintsElements[0];
+		}
+
 		let tmpTethersElements = this.pict.ContentAssignment.getElement(`#Flow-Tethers-${tmpViewIdentifier}`);
 		if (tmpTethersElements.length > 0)
 		{
@@ -450,6 +486,9 @@ class PictViewFlow extends libPictView
 
 		// Bind interaction events
 		this._InteractionManager.initialize(this._SVGElement, this._ViewportElement);
+
+		// Wire the auto-apply handler to structural-change events
+		this._subscribeAutoApplyHandlers();
 
 		// Load initial flow data if an address is configured
 		if (this.options.FlowDataAddress)
@@ -535,13 +574,104 @@ class PictViewFlow extends libPictView
 	}
 
 	/**
-	 * Apply auto-layout to all nodes
+	 * Apply auto-layout to all nodes.
+	 *
+	 * Backwards-compatible signature: when called with no arguments,
+	 * dispatches to the Layered algorithm with its default parameters
+	 * (matching the pre-subsystem behavior).
+	 *
+	 * If `pAlgorithmName` is provided it is used directly; otherwise the
+	 * configured `_FlowData.LayoutAlgorithm` is used (unless that value
+	 * is 'Custom' or unset, in which case it falls back to 'Layered').
+	 *
+	 * @param {string} [pAlgorithmName]
+	 * @param {Object} [pParameters]
 	 */
-	autoLayout()
+	autoLayout(pAlgorithmName, pParameters)
 	{
-		if (this._LayoutService)
+		if (!this._LayoutService) return;
+
+		let tmpName;
+		let tmpParams;
+		if (typeof pAlgorithmName === 'string' && pAlgorithmName !== '')
 		{
-			this._LayoutService.autoLayout(this._FlowData.Nodes, this._FlowData.Connections);
+			tmpName = pAlgorithmName;
+			tmpParams = pParameters || {};
+		}
+		else
+		{
+			let tmpConfigured = this._FlowData.LayoutAlgorithm;
+			tmpName = (typeof tmpConfigured === 'string' && tmpConfigured !== '' && tmpConfigured !== 'Custom') ? tmpConfigured : 'Layered';
+			tmpParams = (tmpName === this._FlowData.LayoutAlgorithm) ? (this._FlowData.LayoutParameters || {}) : {};
+		}
+
+		this._LayoutService.autoLayout(this._FlowData.Nodes, this._FlowData.Connections, tmpName, tmpParams);
+		this.renderFlow();
+		this.marshalFromView();
+
+		if (this._EventHandlerProvider)
+		{
+			this._EventHandlerProvider.fireEvent('onFlowChanged', this._FlowData);
+		}
+	}
+
+	/**
+	 * Apply the currently configured layout algorithm to the flow, then
+	 * call the active edge theme's `AdjustLayout` callback (if any) to
+	 * let the theme adjust node positions for cleaner edge rendering
+	 * (e.g. snap to grid, optimize for crossing minimization).
+	 *
+	 * Reads `_FlowData.LayoutAlgorithm` / `LayoutParameters` /
+	 * `EdgeTheme` / `EdgeThemeParameters`. No-op when algorithm is
+	 * 'Custom' — but the edge theme's adjustment still runs (so themes
+	 * like OrthogonalSnap can snap hand-placed nodes too).
+	 */
+	applyCurrentLayout()
+	{
+		if (!this._LayoutService) return;
+		let tmpAlgorithm = this._FlowData.LayoutAlgorithm || 'Custom';
+
+		this._AutoApplyInProgress = true;
+		try
+		{
+			if (tmpAlgorithm !== 'Custom')
+			{
+				this._LayoutService.applyLayout(
+					this._FlowData.Nodes,
+					this._FlowData.Connections,
+					tmpAlgorithm,
+					this._FlowData.LayoutParameters || {}
+				);
+			}
+
+			// Edge-theme post-processing (placement adjustment).
+			let tmpEdgeTheme = this._LayoutService.resolveActiveEdgeTheme({});
+			if (tmpEdgeTheme && typeof tmpEdgeTheme.AdjustLayout === 'function')
+			{
+				try
+				{
+					let tmpEdgeParams = this._LayoutService.getMergedEdgeThemeParameters(
+						tmpEdgeTheme.Name,
+						this._FlowData.EdgeThemeParameters || {}
+					);
+					tmpEdgeTheme.AdjustLayout(this._FlowData.Nodes, this._FlowData.Connections, tmpEdgeParams);
+				}
+				catch (pError)
+				{
+					this.log.warn(`PictSectionFlow edge theme '${tmpEdgeTheme.Name}' AdjustLayout threw: ${pError.message}`);
+				}
+			}
+
+			let tmpHadAdjust = !!(tmpEdgeTheme && typeof tmpEdgeTheme.AdjustLayout === 'function');
+			let tmpDidLayout = (tmpAlgorithm !== 'Custom');
+
+			if (!tmpDidLayout && !tmpHadAdjust)
+			{
+				// Custom + theme-without-AdjustLayout → no positions changed.
+				// Don't render or fire onFlowChanged.
+				return;
+			}
+
 			this.renderFlow();
 			this.marshalFromView();
 
@@ -549,6 +679,143 @@ class PictViewFlow extends libPictView
 			{
 				this._EventHandlerProvider.fireEvent('onFlowChanged', this._FlowData);
 			}
+		}
+		finally
+		{
+			this._AutoApplyInProgress = false;
+		}
+	}
+
+	/**
+	 * Set the active edge theme (and optionally its parameters). Re-runs
+	 * the current layout so any `AdjustLayout` callback takes effect.
+	 *
+	 * @param {string|null} pThemeName - null clears the override (theme
+	 *   then resolves via the active layout's `DefaultEdgeTheme`).
+	 * @param {Object} [pParameters]
+	 */
+	setEdgeTheme(pThemeName, pParameters)
+	{
+		if (!this._LayoutService) return;
+		if (pThemeName != null && typeof pThemeName !== 'string') return;
+
+		if (pThemeName)
+		{
+			let tmpTheme = this._LayoutService.getEdgeTheme(pThemeName);
+			if (!tmpTheme)
+			{
+				this.log.warn(`PictSectionFlow setEdgeTheme: unknown theme '${pThemeName}'`);
+				return;
+			}
+			this._FlowData.EdgeTheme = pThemeName;
+			this._FlowData.EdgeThemeParameters = Object.assign({}, tmpTheme.DefaultParameters || {}, pParameters || {});
+		}
+		else
+		{
+			this._FlowData.EdgeTheme = null;
+			this._FlowData.EdgeThemeParameters = pParameters ? Object.assign({}, pParameters) : {};
+		}
+
+		this.applyCurrentLayout();
+	}
+
+	/**
+	 * Read the currently configured edge theme settings.
+	 * Returns the *resolved* active theme (factoring in fallback to the
+	 * active layout's `DefaultEdgeTheme`) plus the explicit override
+	 * (if any) for round-tripping into UI.
+	 *
+	 * @returns {{ Theme: string, Override: string|null, Parameters: Object }}
+	 */
+	getEdgeTheme()
+	{
+		let tmpResolved = this._LayoutService ? this._LayoutService.resolveActiveEdgeTheme({}) : null;
+		return {
+			Theme: tmpResolved ? tmpResolved.Name : null,
+			Override: this._FlowData.EdgeTheme || null,
+			Parameters: JSON.parse(JSON.stringify(this._FlowData.EdgeThemeParameters || {}))
+		};
+	}
+
+	/**
+	 * Set the configured layout algorithm and (optionally) its parameters
+	 * and auto-apply flag. Persists to `_FlowData` and applies the layout
+	 * immediately when the algorithm is non-Custom.
+	 *
+	 * @param {string} pAlgorithmName
+	 * @param {Object} [pParameters] - merged over the algorithm's defaults
+	 * @param {boolean} [pAutoApply] - if provided, also sets `LayoutAutoApply`
+	 */
+	setLayoutAlgorithm(pAlgorithmName, pParameters, pAutoApply)
+	{
+		if (!this._LayoutService) return;
+		if (typeof pAlgorithmName !== 'string' || pAlgorithmName === '') return;
+
+		let tmpAlgo = this._LayoutService.getAlgorithm(pAlgorithmName);
+		if (!tmpAlgo)
+		{
+			this.log.warn(`PictSectionFlow setLayoutAlgorithm: unknown algorithm '${pAlgorithmName}'`);
+			return;
+		}
+
+		this._FlowData.LayoutAlgorithm = pAlgorithmName;
+		this._FlowData.LayoutParameters = Object.assign({}, tmpAlgo.DefaultParameters || {}, pParameters || {});
+		if (typeof pAutoApply === 'boolean')
+		{
+			this._FlowData.LayoutAutoApply = pAutoApply;
+		}
+
+		// Always run applyCurrentLayout so the new layout's `DefaultEdgeTheme`
+		// takes effect on connection rendering — even when switching to
+		// 'Custom' (which doesn't reposition nodes but does re-render edges).
+		this.applyCurrentLayout();
+		this.renderFlow();
+	}
+
+	/**
+	 * Toggle whether the configured layout re-applies on structural changes.
+	 * @param {boolean} pAutoApply
+	 */
+	setLayoutAutoApply(pAutoApply)
+	{
+		this._FlowData.LayoutAutoApply = !!pAutoApply;
+		this.marshalFromView();
+	}
+
+	/**
+	 * Read the currently configured layout algorithm settings.
+	 * @returns {{ Algorithm: string, Parameters: Object, AutoApply: boolean }}
+	 */
+	getLayoutAlgorithm()
+	{
+		return {
+			Algorithm: this._FlowData.LayoutAlgorithm || 'Custom',
+			Parameters: JSON.parse(JSON.stringify(this._FlowData.LayoutParameters || {})),
+			AutoApply: !!this._FlowData.LayoutAutoApply
+		};
+	}
+
+	/**
+	 * Subscribe the auto-apply handler to structural-change events. Idempotent.
+	 * Only structural events trigger re-layout — `onNodeMoved` is intentionally
+	 * NOT subscribed so user drags are never clobbered until the next add/remove.
+	 */
+	_subscribeAutoApplyHandlers()
+	{
+		if (!this._EventHandlerProvider) return;
+		if (this._AutoApplyHandlerHashes.length > 0) return;
+
+		let tmpEvents = ['onNodeAdded', 'onNodeRemoved', 'onConnectionCreated', 'onConnectionRemoved'];
+		for (let i = 0; i < tmpEvents.length; i++)
+		{
+			let tmpHash = this._EventHandlerProvider.registerHandler(tmpEvents[i], () =>
+			{
+				if (this._AutoApplyInProgress) return;
+				if (!this._FlowData.LayoutAutoApply) return;
+				if (!this._FlowData.LayoutAlgorithm || this._FlowData.LayoutAlgorithm === 'Custom') return;
+				this.applyCurrentLayout();
+			});
+			if (tmpHash) this._AutoApplyHandlerHashes.push({ Event: tmpEvents[i], Hash: tmpHash });
 		}
 	}
 

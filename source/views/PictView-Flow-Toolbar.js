@@ -38,15 +38,20 @@ const _DefaultConfiguration =
 		</button>
 	</div>
 	<div class="pict-flow-toolbar-group">
-		<button class="pict-flow-toolbar-btn" data-flow-action="layout-popup" id="Flow-Toolbar-Layout-{~D:Record.FlowViewIdentifier~}" title="Manage Layouts">
+		<button class="pict-flow-toolbar-btn" data-flow-action="layout-popup" id="Flow-Toolbar-Layout-{~D:Record.FlowViewIdentifier~}" title="Manage saved layouts">
 			<span class="pict-flow-toolbar-btn-icon" id="Flow-Toolbar-Icon-layout-{~D:Record.FlowViewIdentifier~}"></span>
-			<span class="pict-flow-toolbar-btn-text">Layout</span>
+			<span class="pict-flow-toolbar-btn-text">Layouts</span>
 			<span class="pict-flow-toolbar-btn-chevron" id="Flow-Toolbar-LayoutChevron-{~D:Record.FlowViewIdentifier~}"></span>
 		</button>
-		<button class="pict-flow-toolbar-btn" data-flow-action="auto-layout" title="Auto Layout">
-			<span class="pict-flow-toolbar-btn-icon" id="Flow-Toolbar-Icon-auto-layout-{~D:Record.FlowViewIdentifier~}"></span>
-			<span class="pict-flow-toolbar-btn-text">Auto Layout</span>
-		</button>
+		<div class="pict-flow-toolbar-btn-split" id="Flow-Toolbar-Auto-{~D:Record.FlowViewIdentifier~}">
+			<button class="pict-flow-toolbar-btn pict-flow-toolbar-btn-split-main" data-flow-action="apply-current-layout" title="Apply current layout algorithm">
+				<span class="pict-flow-toolbar-btn-icon" id="Flow-Toolbar-Icon-auto-{~D:Record.FlowViewIdentifier~}"></span>
+				<span class="pict-flow-toolbar-btn-text">Auto</span>
+			</button>
+			<button class="pict-flow-toolbar-btn pict-flow-toolbar-btn-split-chevron" data-flow-action="layout-algorithm-popup" title="Choose layout algorithm">
+				<span class="pict-flow-toolbar-btn-chevron" id="Flow-Toolbar-AutoChevron-{~D:Record.FlowViewIdentifier~}"></span>
+			</button>
+		</div>
 	</div>
 	<div class="pict-flow-toolbar-group">
 		<button class="pict-flow-toolbar-btn" data-flow-action="zoom-in" title="Zoom In">
@@ -113,6 +118,16 @@ class PictViewFlowToolbar extends libPictView
 		this._FloatingPosition = { X: 80, Y: 80 };
 		this._DocumentClickHandler = null;
 		this._FloatingToolbarView = null;
+
+		// Layout-algorithm parameter form (pict-section-form metacontroller).
+		// Lazily created on first popup open; null until then. Falls back to
+		// hand-rolled inputs when PictFormMetacontroller is not registered.
+		this._LayoutFormMetacontroller = null;
+		this._LayoutFormHostID = null;
+		// Whether the parameter form is expanded inside the popup. Persists
+		// across popup opens so a user who collapsed it doesn't have to
+		// re-collapse on every reopen. Defaults to expanded.
+		this._LayoutFormExpanded = true;
 	}
 
 	render(pRenderableHash, pRenderDestinationAddress, pTemplateRecordAddress)
@@ -174,6 +189,14 @@ class PictViewFlowToolbar extends libPictView
 				tmpCardsBtn[0].remove();
 			}
 		}
+		if (this.options.EnableLayoutMenu === false)
+		{
+			let tmpAutoBtn = this.pict.ContentAssignment.getElement(`#Flow-Toolbar-Auto-${tmpFlowViewIdentifier}`);
+			if (tmpAutoBtn.length > 0)
+			{
+				tmpAutoBtn[0].remove();
+			}
+		}
 
 		return super.onAfterRender(pRenderable, pRenderDestinationAddress, pRecord, pContent);
 	}
@@ -198,7 +221,7 @@ class PictViewFlowToolbar extends libPictView
 			'zoom-in': 'zoom-in',
 			'zoom-out': 'zoom-out',
 			'zoom-fit': 'zoom-fit',
-			'auto-layout': 'auto-layout',
+			'auto': 'auto-layout',
 			'cards': 'cards',
 			'layout': 'layout',
 			'settings': 'settings',
@@ -236,6 +259,12 @@ class PictViewFlowToolbar extends libPictView
 		if (tmpLayoutChevron.length > 0)
 		{
 			tmpLayoutChevron[0].innerHTML = tmpIconProvider.getIconSVGMarkup('chevron-down', 8);
+		}
+
+		let tmpAutoChevron = this.pict.ContentAssignment.getElement(`#Flow-Toolbar-AutoChevron-${tmpFlowViewIdentifier}`);
+		if (tmpAutoChevron.length > 0)
+		{
+			tmpAutoChevron[0].innerHTML = tmpIconProvider.getIconSVGMarkup('chevron-down', 8);
 		}
 	}
 
@@ -277,6 +306,9 @@ class PictViewFlowToolbar extends libPictView
 				break;
 			case 'layout':
 				this._buildLayoutPopup(tmpPopup);
+				break;
+			case 'layout-algorithm':
+				this._buildLayoutAlgorithmPopup(tmpPopup);
 				break;
 			case 'settings':
 				this._buildSettingsPopup(tmpPopup);
@@ -365,6 +397,9 @@ class PictViewFlowToolbar extends libPictView
 				break;
 			case 'layout':
 				tmpTriggerSelector = `#Flow-Toolbar-Layout-${tmpFlowViewIdentifier}`;
+				break;
+			case 'layout-algorithm':
+				tmpTriggerSelector = `#Flow-Toolbar-Auto-${tmpFlowViewIdentifier}`;
 				break;
 			case 'settings':
 				tmpTriggerSelector = `#Flow-Toolbar-Settings-${tmpFlowViewIdentifier}`;
@@ -911,6 +946,657 @@ class PictViewFlowToolbar extends libPictView
 		}
 	}
 
+	// ── Layout Algorithm Popup ────────────────────────────────────────────
+
+	/**
+	 * Build the Layout Algorithm popup content. Distinct from the
+	 * `_buildLayoutPopup` above which manages **saved layout snapshots**.
+	 * This popup lets the user pick a layout algorithm, tune its
+	 * parameters, and toggle auto-apply.
+	 *
+	 * @param {HTMLElement} pContainer
+	 */
+	_buildLayoutAlgorithmPopup(pContainer)
+	{
+		if (!this._FlowView || !this._FlowView._LayoutService) return;
+
+		let tmpLayoutService = this._FlowView._LayoutService;
+		let tmpCurrentSettings = this._FlowView.getLayoutAlgorithm();
+		let tmpAlgoDescriptor = tmpLayoutService.getAlgorithm(tmpCurrentSettings.Algorithm);
+
+		// ── Algorithm row: label + dropdown + collapse toggle ────
+		let tmpAlgoSection = document.createElement('div');
+		tmpAlgoSection.className = 'pict-flow-popup-settings-section pict-flow-popup-layout-algorithm-row';
+
+		let tmpAlgoLabel = document.createElement('label');
+		tmpAlgoLabel.className = 'pict-flow-popup-settings-label';
+		tmpAlgoLabel.textContent = 'Algorithm';
+		tmpAlgoSection.appendChild(tmpAlgoLabel);
+
+		let tmpAlgoControls = document.createElement('div');
+		tmpAlgoControls.className = 'pict-flow-popup-layout-algorithm-controls';
+
+		let tmpAlgoSelect = document.createElement('select');
+		tmpAlgoSelect.className = 'pict-flow-popup-settings-select pict-flow-popup-layout-algorithm-select';
+		tmpAlgoSelect.setAttribute('data-layout-control', 'algorithm');
+
+		let tmpAlgorithms = tmpLayoutService.listAlgorithms();
+		for (let i = 0; i < tmpAlgorithms.length; i++)
+		{
+			let tmpOption = document.createElement('option');
+			tmpOption.value = tmpAlgorithms[i].Name;
+			tmpOption.textContent = tmpAlgorithms[i].Label || tmpAlgorithms[i].Name;
+			if (tmpAlgorithms[i].Name === tmpCurrentSettings.Algorithm)
+			{
+				tmpOption.selected = true;
+			}
+			tmpAlgoSelect.appendChild(tmpOption);
+		}
+
+		tmpAlgoSelect.addEventListener('change', () =>
+		{
+			let tmpName = tmpAlgoSelect.value;
+			let tmpAlgo = tmpLayoutService.getAlgorithm(tmpName);
+			let tmpDefaults = (tmpAlgo && tmpAlgo.DefaultParameters) ? JSON.parse(JSON.stringify(tmpAlgo.DefaultParameters)) : {};
+			this._FlowView.setLayoutAlgorithm(tmpName, tmpDefaults);
+			// Refresh the popup so the parameter form reflects the new algorithm
+			while (pContainer.firstChild)
+			{
+				pContainer.removeChild(pContainer.firstChild);
+			}
+			this._buildLayoutAlgorithmPopup(pContainer);
+		});
+		tmpAlgoSelect.addEventListener('click', (pEvent) => { pEvent.stopPropagation(); });
+
+		tmpAlgoControls.appendChild(tmpAlgoSelect);
+
+		// Collapse toggle for the parameter form. Only meaningful when
+		// the algorithm actually has parameters (Custom doesn't).
+		let tmpHasParameters = !!(tmpAlgoDescriptor && (
+			(tmpAlgoDescriptor.ParameterManifest && tmpAlgoDescriptor.ParameterManifest.Descriptors) ||
+			(tmpAlgoDescriptor.ParameterSchema && Object.keys(tmpAlgoDescriptor.ParameterSchema).length > 0)
+		));
+		let tmpFormToggle = null;
+		if (tmpHasParameters)
+		{
+			tmpFormToggle = document.createElement('button');
+			tmpFormToggle.type = 'button';
+			tmpFormToggle.className = 'pict-flow-popup-collapse-toggle';
+			tmpFormToggle.title = this._LayoutFormExpanded ? 'Hide parameters' : 'Show parameters';
+			tmpFormToggle.setAttribute('aria-expanded', this._LayoutFormExpanded ? 'true' : 'false');
+			let tmpIconProvider = this._FlowView ? this._FlowView._IconProvider : null;
+			tmpFormToggle.innerHTML = tmpIconProvider
+				? tmpIconProvider.getIconSVGMarkup('settings', 13)
+				: '⚙';
+			tmpAlgoControls.appendChild(tmpFormToggle);
+		}
+
+		tmpAlgoSection.appendChild(tmpAlgoControls);
+		pContainer.appendChild(tmpAlgoSection);
+
+		// ── Description (one-liner under the dropdown row) ───
+		if (tmpAlgoDescriptor && tmpAlgoDescriptor.Description)
+		{
+			let tmpDescDiv = document.createElement('div');
+			tmpDescDiv.className = 'pict-flow-popup-control-description';
+			tmpDescDiv.textContent = tmpAlgoDescriptor.Description;
+			pContainer.appendChild(tmpDescDiv);
+		}
+
+		// ── Parameter form (collapsible, sits right under the
+		// algorithm row so the editor reads as part of the same
+		// "this is the algorithm" section) ───────────────────
+		this._buildLayoutParameterFormSection(pContainer, tmpAlgoDescriptor, tmpCurrentSettings);
+
+		// Wire toggle now that the form host element exists
+		if (tmpFormToggle)
+		{
+			tmpFormToggle.addEventListener('click', (pEvent) =>
+			{
+				pEvent.stopPropagation();
+				this._LayoutFormExpanded = !this._LayoutFormExpanded;
+				tmpFormToggle.setAttribute('aria-expanded', this._LayoutFormExpanded ? 'true' : 'false');
+				tmpFormToggle.title = this._LayoutFormExpanded ? 'Hide parameters' : 'Show parameters';
+				let tmpHost = this._LayoutFormHostID ? document.getElementById(this._LayoutFormHostID) : null;
+				if (tmpHost)
+				{
+					tmpHost.setAttribute('data-collapsed', this._LayoutFormExpanded ? 'false' : 'true');
+				}
+			});
+		}
+
+		// ── Edge theme dropdown ──────────────────────────────
+		let tmpEdgeDivider = document.createElement('div');
+		tmpEdgeDivider.className = 'pict-flow-popup-divider';
+		pContainer.appendChild(tmpEdgeDivider);
+
+		let tmpEdgeSection = document.createElement('div');
+		tmpEdgeSection.className = 'pict-flow-popup-settings-section';
+
+		let tmpEdgeLabel = document.createElement('label');
+		tmpEdgeLabel.className = 'pict-flow-popup-settings-label';
+		tmpEdgeLabel.textContent = 'Edge theme';
+		tmpEdgeSection.appendChild(tmpEdgeLabel);
+
+		let tmpEdgeSelect = document.createElement('select');
+		tmpEdgeSelect.className = 'pict-flow-popup-settings-select';
+		tmpEdgeSelect.setAttribute('data-layout-control', 'edge-theme');
+
+		let tmpEdgeSettings = this._FlowView.getEdgeTheme();
+		let tmpResolvedEdge = tmpEdgeSettings.Theme;
+		let tmpExplicitEdgeOverride = tmpEdgeSettings.Override;
+
+		// Inherit option — falls back to the active layout's DefaultEdgeTheme
+		let tmpInheritOpt = document.createElement('option');
+		tmpInheritOpt.value = '__inherit__';
+		let tmpDefaultThemeName = (tmpAlgoDescriptor && tmpAlgoDescriptor.DefaultEdgeTheme) || 'Bezier';
+		tmpInheritOpt.textContent = `Inherit from layout (${tmpDefaultThemeName})`;
+		if (!tmpExplicitEdgeOverride) tmpInheritOpt.selected = true;
+		tmpEdgeSelect.appendChild(tmpInheritOpt);
+
+		let tmpEdgeThemes = tmpLayoutService.listEdgeThemes();
+		for (let i = 0; i < tmpEdgeThemes.length; i++)
+		{
+			let tmpOpt = document.createElement('option');
+			tmpOpt.value = tmpEdgeThemes[i].Name;
+			tmpOpt.textContent = tmpEdgeThemes[i].Label || tmpEdgeThemes[i].Name;
+			if (tmpEdgeThemes[i].Name === tmpExplicitEdgeOverride)
+			{
+				tmpOpt.selected = true;
+			}
+			tmpEdgeSelect.appendChild(tmpOpt);
+		}
+
+		tmpEdgeSelect.addEventListener('change', () =>
+		{
+			let tmpVal = tmpEdgeSelect.value;
+			if (tmpVal === '__inherit__')
+			{
+				this._FlowView.setEdgeTheme(null);
+			}
+			else
+			{
+				this._FlowView.setEdgeTheme(tmpVal);
+			}
+			// Rebuild the popup so the description and any theme-specific
+			// controls reflect the new theme.
+			while (pContainer.firstChild)
+			{
+				pContainer.removeChild(pContainer.firstChild);
+			}
+			this._buildLayoutAlgorithmPopup(pContainer);
+		});
+		tmpEdgeSelect.addEventListener('click', (pEvent) => { pEvent.stopPropagation(); });
+
+		tmpEdgeSection.appendChild(tmpEdgeSelect);
+		pContainer.appendChild(tmpEdgeSection);
+
+		// Edge theme description (uses the *resolved* theme so users see
+		// what's actually rendering, regardless of inherit/explicit choice)
+		if (tmpResolvedEdge)
+		{
+			let tmpResolvedDescriptor = tmpLayoutService.getEdgeTheme(tmpResolvedEdge);
+			if (tmpResolvedDescriptor && tmpResolvedDescriptor.Description)
+			{
+				let tmpEdgeDesc = document.createElement('div');
+				tmpEdgeDesc.className = 'pict-flow-popup-control-description';
+				tmpEdgeDesc.textContent = tmpResolvedDescriptor.Description;
+				pContainer.appendChild(tmpEdgeDesc);
+			}
+		}
+
+		// ── Auto-apply toggle ────────────────────────────────
+		let tmpAutoApplyDivider = document.createElement('div');
+		tmpAutoApplyDivider.className = 'pict-flow-popup-divider';
+		pContainer.appendChild(tmpAutoApplyDivider);
+
+		let tmpAutoApplySection = document.createElement('div');
+		tmpAutoApplySection.className = 'pict-flow-popup-settings-section';
+		tmpAutoApplySection.style.display = 'flex';
+		tmpAutoApplySection.style.alignItems = 'center';
+		tmpAutoApplySection.style.gap = '8px';
+
+		let tmpAutoApplyCheckbox = document.createElement('input');
+		tmpAutoApplyCheckbox.type = 'checkbox';
+		tmpAutoApplyCheckbox.id = `Flow-Toolbar-AutoApply-${this.options.FlowViewIdentifier}`;
+		tmpAutoApplyCheckbox.checked = !!tmpCurrentSettings.AutoApply;
+		tmpAutoApplyCheckbox.addEventListener('change', () =>
+		{
+			this._FlowView.setLayoutAutoApply(tmpAutoApplyCheckbox.checked);
+		});
+		tmpAutoApplyCheckbox.addEventListener('click', (pEvent) => { pEvent.stopPropagation(); });
+
+		let tmpAutoApplyLabel = document.createElement('label');
+		tmpAutoApplyLabel.className = 'pict-flow-popup-settings-label';
+		tmpAutoApplyLabel.setAttribute('for', tmpAutoApplyCheckbox.id);
+		tmpAutoApplyLabel.textContent = 'Auto-apply on changes';
+		tmpAutoApplyLabel.style.cursor = 'pointer';
+
+		tmpAutoApplySection.appendChild(tmpAutoApplyCheckbox);
+		tmpAutoApplySection.appendChild(tmpAutoApplyLabel);
+		pContainer.appendChild(tmpAutoApplySection);
+
+		// (Parameter form is rendered above, right under the algorithm row,
+		// so it reads as part of the same "this is the algorithm" section.)
+
+		// ── Apply Now button ─────────────────────────────────
+		let tmpApplyDivider = document.createElement('div');
+		tmpApplyDivider.className = 'pict-flow-popup-divider';
+		pContainer.appendChild(tmpApplyDivider);
+
+		let tmpApplyRow = document.createElement('div');
+		tmpApplyRow.className = 'pict-flow-popup-settings-section';
+		tmpApplyRow.style.padding = '4px 8px';
+
+		let tmpApplyBtn = document.createElement('button');
+		tmpApplyBtn.className = 'pict-flow-popup-layout-save-confirm';
+		tmpApplyBtn.textContent = 'Apply Now';
+		tmpApplyBtn.style.width = '100%';
+		tmpApplyBtn.style.padding = '6px';
+		if (tmpCurrentSettings.Algorithm === 'Custom')
+		{
+			tmpApplyBtn.disabled = true;
+			tmpApplyBtn.title = 'Custom does not auto-position nodes';
+		}
+		tmpApplyBtn.addEventListener('click', () =>
+		{
+			if (tmpCurrentSettings.Algorithm === 'Custom') return;
+			this._FlowView.applyCurrentLayout();
+		});
+		tmpApplyRow.appendChild(tmpApplyBtn);
+		pContainer.appendChild(tmpApplyRow);
+	}
+
+	/**
+	 * Render the parameter form section. When the host app has registered
+	 * `PictFormMetacontroller` and the algorithm provides a
+	 * `ParameterManifest`, we inject that manifest into a section-form so
+	 * the user gets the same Manyfest-driven UX as the rest of the Pict
+	 * ecosystem. Otherwise we fall back to schema-driven hand-rolled inputs.
+	 *
+	 * Data binding: `pict.AppData.PictFlowLayoutEditor.Parameters` is a
+	 * mirror of `_FlowData.LayoutParameters`. The form's Informary writes
+	 * directly into AppData; a `change`/`input` listener on the popup
+	 * pushes those edits back into `_FlowData.LayoutParameters` and (when
+	 * the active algorithm is non-Custom) re-applies the layout.
+	 *
+	 * @param {HTMLElement} pContainer
+	 * @param {Object} pAlgoDescriptor - the descriptor for the active algorithm
+	 * @param {{ Algorithm: string, Parameters: Object }} pCurrentSettings
+	 */
+	_buildLayoutParameterFormSection(pContainer, pAlgoDescriptor, pCurrentSettings)
+	{
+		if (!pAlgoDescriptor) return;
+
+		let tmpHasManifest = !!(pAlgoDescriptor.ParameterManifest && pAlgoDescriptor.ParameterManifest.Descriptors);
+		let tmpMetacontrollerType = this._resolveMetacontrollerServiceType();
+
+		if (tmpHasManifest && tmpMetacontrollerType)
+		{
+			this._mountLayoutParameterMetacontroller(pContainer, pAlgoDescriptor, pCurrentSettings, tmpMetacontrollerType);
+			return;
+		}
+
+		// Fallback path — schema-driven hand-rolled inputs.
+		let tmpSchema = (pAlgoDescriptor.ParameterSchema) ? pAlgoDescriptor.ParameterSchema : {};
+		let tmpParamKeys = Object.keys(tmpSchema);
+		if (tmpParamKeys.length === 0) return;
+
+		let tmpParamDivider = document.createElement('div');
+		tmpParamDivider.className = 'pict-flow-popup-divider';
+		pContainer.appendChild(tmpParamDivider);
+
+		let tmpParamHeader = document.createElement('div');
+		tmpParamHeader.className = 'pict-flow-popup-settings-label';
+		tmpParamHeader.style.fontWeight = 'bold';
+		tmpParamHeader.style.padding = '4px 8px';
+		tmpParamHeader.textContent = 'Parameters';
+		pContainer.appendChild(tmpParamHeader);
+
+		for (let i = 0; i < tmpParamKeys.length; i++)
+		{
+			let tmpKey = tmpParamKeys[i];
+			let tmpFieldSchema = tmpSchema[tmpKey];
+			let tmpCurrentValue = (pCurrentSettings.Parameters && pCurrentSettings.Parameters.hasOwnProperty(tmpKey))
+				? pCurrentSettings.Parameters[tmpKey]
+				: tmpFieldSchema.Default;
+
+			let tmpRow = document.createElement('div');
+			tmpRow.className = 'pict-flow-popup-settings-section';
+			tmpRow.style.display = 'flex';
+			tmpRow.style.alignItems = 'center';
+			tmpRow.style.gap = '8px';
+
+			let tmpRowLabel = document.createElement('label');
+			tmpRowLabel.className = 'pict-flow-popup-settings-label';
+			tmpRowLabel.textContent = tmpFieldSchema.Label || tmpKey;
+			tmpRowLabel.style.flex = '1';
+			tmpRow.appendChild(tmpRowLabel);
+
+			let tmpInput = this._buildLayoutParamInput(tmpKey, tmpFieldSchema, tmpCurrentValue);
+			tmpRow.appendChild(tmpInput);
+			pContainer.appendChild(tmpRow);
+		}
+	}
+
+	/**
+	 * Remove `PictSectionForm-*` views the layout-algorithm popup has
+	 * previously registered on the host Pict. Without this, switching
+	 * algorithms accumulates dead section views — the metatemplate
+	 * generated by the next inject would still reference the old ones.
+	 * Idempotent.
+	 */
+	_evictLayoutFormViews()
+	{
+		if (!this.pict || !this.pict.views) return;
+		let tmpKeys = Object.keys(this.pict.views);
+		for (let i = 0; i < tmpKeys.length; i++)
+		{
+			let tmpKey = tmpKeys[i];
+			if (tmpKey.indexOf('PictSectionForm-') === 0 && tmpKey.indexOf('PictFlowLayout') > 0)
+			{
+				delete this.pict.views[tmpKey];
+				continue;
+			}
+			// Match any previously-injected layout-algorithm section by hash
+			// suffix (manifests use unique algorithm-suffixed section names).
+			if (tmpKey.indexOf('PictSectionForm-PFL') === 0)
+			{
+				delete this.pict.views[tmpKey];
+			}
+		}
+		this._LayoutFormMetacontroller = null;
+	}
+
+	/**
+	 * Look up which form-metacontroller service is registered on the host
+	 * Pict instance. pict-section-form has been published under both
+	 * 'PictFormMetacontroller' and (older) 'PictViewFormMetacontroller'
+	 * names; check both, in that order.
+	 * @returns {string|null}
+	 */
+	_resolveMetacontrollerServiceType()
+	{
+		if (!this.fable || !this.fable.servicesMap) return null;
+		if (this.fable.servicesMap.hasOwnProperty('PictFormMetacontroller'))     return 'PictFormMetacontroller';
+		if (this.fable.servicesMap.hasOwnProperty('PictViewFormMetacontroller')) return 'PictViewFormMetacontroller';
+		return null;
+	}
+
+	/**
+	 * Build the parameter form section using a pict-section-form
+	 * metacontroller. Creates a host div, binds the active layout
+	 * parameters to `pict.AppData.PictFlowLayoutEditor.Parameters`, and
+	 * injects the algorithm's `ParameterManifest`. Form-input changes
+	 * propagate back to `_FlowData.LayoutParameters` via a single
+	 * `change`/`input` listener on the popup container.
+	 *
+	 * @param {HTMLElement} pContainer
+	 * @param {Object} pAlgoDescriptor
+	 * @param {{ Algorithm: string, Parameters: Object }} pCurrentSettings
+	 * @param {string} pMetacontrollerType - 'PictFormMetacontroller' or 'PictViewFormMetacontroller'
+	 */
+	_mountLayoutParameterMetacontroller(pContainer, pAlgoDescriptor, pCurrentSettings, pMetacontrollerType)
+	{
+		let tmpManifest = JSON.parse(JSON.stringify(pAlgoDescriptor.ParameterManifest));
+		let tmpFlowViewIdentifier = this.options.FlowViewIdentifier;
+
+		// Section header + divider
+		let tmpDivider = document.createElement('div');
+		tmpDivider.className = 'pict-flow-popup-divider';
+		pContainer.appendChild(tmpDivider);
+
+		// Form host div — the metacontroller renders into here
+		let tmpHostID = `Flow-Toolbar-LayoutForm-${tmpFlowViewIdentifier}`;
+		this._LayoutFormHostID = tmpHostID;
+
+		let tmpHostDiv = document.createElement('div');
+		tmpHostDiv.id = tmpHostID;
+		tmpHostDiv.className = 'pict-flow-popup-layout-form-host';
+		tmpHostDiv.setAttribute('data-collapsed', this._LayoutFormExpanded ? 'false' : 'true');
+		// Clicks inside the form must NOT close the popup
+		tmpHostDiv.addEventListener('click', (pEvent) => { pEvent.stopPropagation(); });
+		pContainer.appendChild(tmpHostDiv);
+
+		// Bind the layout parameters as the data source for the form.
+		// `injectManifestAndRender(manifest, _, UUID)` calls
+		// `createDistinctManifest` which prepends the UUID to every descriptor
+		// address (so re-injecting the same manifest doesn't collide). We use
+		// the algorithm name as the UUID, so the form's expected address is
+		// `AppData.<Algorithm>.PictFlowLayoutEditor.Parameters.<Key>` —
+		// bind there, not at the unprefixed root.
+		let tmpScope = pCurrentSettings.Algorithm;
+		this.pict.AppData[tmpScope] = this.pict.AppData[tmpScope] || {};
+		this.pict.AppData[tmpScope].PictFlowLayoutEditor = this.pict.AppData[tmpScope].PictFlowLayoutEditor || {};
+		this.pict.AppData[tmpScope].PictFlowLayoutEditor.Parameters = JSON.parse(JSON.stringify(pCurrentSettings.Parameters || {}));
+
+		// Always recreate the metacontroller per mount. Reusing the same
+		// metacontroller across algorithm switches accumulates section views
+		// (each switch's manifest gets injected onto the existing roster) and
+		// the metatemplate ends up wedging multiple sections into a single
+		// shared destination — only the last one survives. Fresh instance per
+		// mount keeps the DOM consistent; we also evict the prior
+		// `PictSectionForm-*` views from `pict.views` so they GC cleanly.
+		this._evictLayoutFormViews();
+		try
+		{
+			this._LayoutFormMetacontroller = this.fable.instantiateServiceProviderWithoutRegistration(
+				pMetacontrollerType,
+				{
+					ViewIdentifier: `Flow-Toolbar-LayoutForm-MC-${tmpFlowViewIdentifier}-${this.fable.getUUID()}`,
+					DefaultDestinationAddress: `#${tmpHostID}`,
+					AutoRender: false,
+					AutoPopulateAfterRender: true,
+					AutoSolveBeforeRender: false
+				});
+		}
+		catch (pError)
+		{
+			this.log.warn(`Failed to instantiate ${pMetacontrollerType}: ${pError.message}`);
+			this._LayoutFormMetacontroller = null;
+		}
+
+		if (!this._LayoutFormMetacontroller)
+		{
+			tmpHostDiv.innerHTML = '<em style="padding:8px;display:block;opacity:0.7;">pict-section-form not available; parameter form skipped.</em>';
+			return;
+		}
+
+		// Establish the form-container div the metacontroller expects.
+		let tmpFormContainerID = `Pict-${this._LayoutFormMetacontroller.UUID}-FormContainer`;
+		tmpHostDiv.innerHTML = `<div id="${tmpFormContainerID}" class="pict-form pict-flow-popup-layout-form"></div>`;
+
+		try
+		{
+			// Use `injectManifest` + explicit per-section destination divs +
+			// per-section render. Don't use `injectManifestAndRender` —
+			// its metatemplate flow ends up wedging multi-section manifests
+			// into a single shared destination (each section's render call
+			// uses RenderMethod=replace, blowing the others away). The
+			// explicit path gives each section its own destination div and
+			// renders them independently.
+			let tmpInjectFn = (typeof this._LayoutFormMetacontroller.injectManifest === 'function')
+				? this._LayoutFormMetacontroller.injectManifest.bind(this._LayoutFormMetacontroller)
+				: null;
+			if (!tmpInjectFn) throw new Error('Metacontroller exposes neither injectManifest nor injectManifestAndRender');
+
+			// Pass the algorithm name as the section-hash discriminator so
+			// re-injecting the same algorithm gets unique view registrations.
+			// (createDistinctManifest does the address-prefixing too — see
+			// the per-algorithm AppData binding above.)
+			let tmpDistinct = (typeof this._LayoutFormMetacontroller.createDistinctManifest === 'function')
+				? this._LayoutFormMetacontroller.createDistinctManifest(tmpManifest, pCurrentSettings.Algorithm)
+				: tmpManifest;
+
+			let tmpViews = tmpInjectFn(tmpDistinct);
+
+			// Build a destination div per section view, in order, and render each.
+			let tmpFormContainerEl = tmpHostDiv.querySelector(`#${tmpFormContainerID}`);
+			if (tmpFormContainerEl)
+			{
+				let tmpInner = '';
+				for (let i = 0; i < tmpViews.length; i++)
+				{
+					let tmpDest = tmpViews[i].options.DefaultDestinationAddress;
+					if (tmpDest && tmpDest.charAt(0) === '#') tmpDest = tmpDest.substring(1);
+					tmpInner += `<div id="${tmpDest}" class="pict-form-view"></div>`;
+				}
+				tmpFormContainerEl.innerHTML = tmpInner;
+			}
+			// Defer render() to the next microtask so the popup has been
+			// appended to the DOM by `_openPopup` — pict-section-form
+			// resolves destinations via `document.querySelector`, which
+			// can't see detached subtrees. (Same workaround the
+			// metacontroller's own `injectManifestAndRender` uses.)
+			setTimeout(() =>
+			{
+				for (let i = 0; i < tmpViews.length; i++)
+				{
+					tmpViews[i].render();
+					if (typeof tmpViews[i].marshalToView === 'function')
+					{
+						tmpViews[i].marshalToView();
+					}
+				}
+			}, 0);
+		}
+		catch (pError)
+		{
+			this.log.warn(`PictViewFlowToolbar: layout-form injection failed: ${pError.message}`);
+			tmpHostDiv.innerHTML = `<em style="padding:8px;display:block;opacity:0.7;">Form render error: ${pError.message}</em>`;
+			return;
+		}
+
+		// Push form changes back into _FlowData.LayoutParameters and re-apply
+		// the layout (when non-Custom). One listener at the host level catches
+		// both `change` (for selects/numbers/checkboxes) and `input` (for the
+		// live-update case). De-bounce via micro-task so multi-key edits
+		// resolve to a single re-layout pass. Read from the algorithm-scoped
+		// AppData branch (matches the UUID-prefixed descriptor addresses).
+		let tmpScheduled = false;
+		let tmpPushBack = () =>
+		{
+			if (tmpScheduled) return;
+			tmpScheduled = true;
+			Promise.resolve().then(() =>
+			{
+				tmpScheduled = false;
+				let tmpScopedRoot = this.pict.AppData[tmpScope] || {};
+				let tmpEditorParams = (tmpScopedRoot.PictFlowLayoutEditor || {}).Parameters || {};
+				let tmpMerged = Object.assign({}, this._FlowView.getLayoutAlgorithm().Parameters || {}, tmpEditorParams);
+				this._FlowView.setLayoutAlgorithm(pCurrentSettings.Algorithm, tmpMerged);
+			});
+		};
+		tmpHostDiv.addEventListener('change', tmpPushBack);
+		tmpHostDiv.addEventListener('input', tmpPushBack);
+	}
+
+	/**
+	 * Build a single parameter input row for the layout-algorithm popup.
+	 * Wires the input's change handler to update the flow's
+	 * `LayoutParameters` and re-apply the layout if non-Custom.
+	 *
+	 * @param {string} pKey
+	 * @param {Object} pSchema - { Type: 'number' | 'string' | 'boolean' | 'enum', Default, Options? }
+	 * @param {*} pCurrentValue
+	 * @returns {HTMLElement}
+	 */
+	_buildLayoutParamInput(pKey, pSchema, pCurrentValue)
+	{
+		let tmpInput;
+
+		if (pSchema.Type === 'boolean')
+		{
+			tmpInput = document.createElement('input');
+			tmpInput.type = 'checkbox';
+			tmpInput.checked = !!pCurrentValue;
+			tmpInput.addEventListener('change', () =>
+			{
+				this._updateLayoutParameter(pKey, tmpInput.checked);
+			});
+		}
+		else if (pSchema.Type === 'enum' && Array.isArray(pSchema.Options))
+		{
+			tmpInput = document.createElement('select');
+			tmpInput.className = 'pict-flow-popup-settings-select';
+			for (let i = 0; i < pSchema.Options.length; i++)
+			{
+				let tmpOpt = document.createElement('option');
+				tmpOpt.value = pSchema.Options[i];
+				tmpOpt.textContent = pSchema.Options[i];
+				if (pSchema.Options[i] === pCurrentValue) tmpOpt.selected = true;
+				tmpInput.appendChild(tmpOpt);
+			}
+			tmpInput.addEventListener('change', () =>
+			{
+				this._updateLayoutParameter(pKey, tmpInput.value);
+			});
+		}
+		else if (pSchema.Type === 'number' || pSchema.Type === 'Number' || pSchema.Type === 'PreciseNumber')
+		{
+			tmpInput = document.createElement('input');
+			tmpInput.type = 'number';
+			tmpInput.className = 'pict-flow-popup-settings-input';
+			// PreciseNumber: arbitrary precision (string-stored, big.js / ExpressionParser-friendly).
+			// Number: integer or simple float.
+			let tmpIsPrecise = (pSchema.Type === 'PreciseNumber');
+			if (typeof pSchema.Min === 'number') tmpInput.min = String(pSchema.Min);
+			if (typeof pSchema.Max === 'number') tmpInput.max = String(pSchema.Max);
+			tmpInput.step = tmpIsPrecise ? 'any' : '1';
+			let tmpDisplayValue = (pCurrentValue == null) ? '' : String(pCurrentValue);
+			tmpInput.value = tmpDisplayValue;
+			tmpInput.style.width = '90px';
+			tmpInput.addEventListener('change', () =>
+			{
+				let tmpRaw = tmpInput.value;
+				if (tmpRaw === '') return;
+				if (tmpIsPrecise)
+				{
+					// Preserve the user-entered string so big.js / ExpressionParser
+					// can use it without float round-trip drift.
+					this._updateLayoutParameter(pKey, tmpRaw);
+				}
+				else
+				{
+					let tmpNum = parseFloat(tmpRaw);
+					if (isNaN(tmpNum)) return;
+					this._updateLayoutParameter(pKey, tmpNum);
+				}
+			});
+		}
+		else
+		{
+			tmpInput = document.createElement('input');
+			tmpInput.type = 'text';
+			tmpInput.className = 'pict-flow-popup-settings-input';
+			tmpInput.value = (pCurrentValue == null) ? '' : String(pCurrentValue);
+			tmpInput.style.width = '90px';
+			tmpInput.addEventListener('change', () =>
+			{
+				this._updateLayoutParameter(pKey, tmpInput.value);
+			});
+		}
+
+		tmpInput.addEventListener('click', (pEvent) => { pEvent.stopPropagation(); });
+
+		return tmpInput;
+	}
+
+	/**
+	 * Update a single layout parameter on the flow and re-apply the layout
+	 * if the configured algorithm is not 'Custom'.
+	 * @param {string} pKey
+	 * @param {*} pValue
+	 */
+	_updateLayoutParameter(pKey, pValue)
+	{
+		if (!this._FlowView) return;
+		let tmpSettings = this._FlowView.getLayoutAlgorithm();
+		let tmpParams = Object.assign({}, tmpSettings.Parameters || {});
+		tmpParams[pKey] = pValue;
+		this._FlowView.setLayoutAlgorithm(tmpSettings.Algorithm, tmpParams);
+	}
+
 	// ── Settings Popup ───────────────────────────────────────────────────
 
 	/**
@@ -1202,6 +1888,17 @@ class PictViewFlowToolbar extends libPictView
 				break;
 
 			case 'auto-layout':
+				// Legacy alias kept for backward compatibility with any
+				// caller still firing 'auto-layout'. The toolbar's "Auto"
+				// button now uses 'apply-current-layout' (below).
+				this._FlowView.autoLayout();
+				break;
+
+			case 'apply-current-layout':
+				// Respects whichever algorithm is configured in the
+				// Algorithm popup. Falls back to Layered when the
+				// configured value is 'Custom' or unset (autoLayout's
+				// existing behavior — "do something useful").
 				this._FlowView.autoLayout();
 				break;
 
@@ -1211,6 +1908,14 @@ class PictViewFlowToolbar extends libPictView
 
 			case 'layout-popup':
 				this._openPopup('layout');
+				break;
+
+			case 'layout-algorithm-popup':
+				this._openPopup('layout-algorithm');
+				break;
+
+			case 'apply-layout':
+				this._FlowView.applyCurrentLayout();
 				break;
 
 			case 'settings-popup':

@@ -396,6 +396,187 @@ class PictProviderFlowCSS extends libFableServiceProviderBase
 		.pict-flow-node-port-labels-hover:hover .pict-flow-port-label-bg {
 			opacity: 1;
 		}
+
+		/* Port-hint beziers — drawn from the badge to the actual dot
+		   when an edge theme has rerouted the connection. Hidden by
+		   default; PortRenderer / NodeView toggle data-active on hover. */
+		.pict-flow-port-hint {
+			fill: none;
+			stroke: var(--pf-connection-stroke-hover, #3498db);
+			stroke-width: 1.75;
+			stroke-dasharray: 4 3;
+			stroke-linecap: round;
+			opacity: 0;
+			pointer-events: none;
+			transition: opacity 0.18s ease;
+		}
+		.pict-flow-port-hint[data-active="true"] {
+			opacity: 0.7;
+		}
+
+		/* ── Layout-algorithm popup: tightened layout + form styling ── */
+		.pict-flow-popup-layout-algorithm-row {
+			display: flex;
+			flex-direction: column;
+			gap: 4px;
+			padding: 6px 10px 4px;
+		}
+		.pict-flow-popup-layout-algorithm-row > .pict-flow-popup-settings-label {
+			font-size: 10px;
+			font-weight: 700;
+			text-transform: uppercase;
+			letter-spacing: 0.05em;
+			opacity: 0.7;
+			margin: 0;
+		}
+		.pict-flow-popup-layout-algorithm-controls {
+			display: flex;
+			align-items: stretch;
+			gap: 4px;
+		}
+		.pict-flow-popup-layout-algorithm-select {
+			flex: 1 1 auto;
+			min-width: 0;
+		}
+		.pict-flow-popup-collapse-toggle {
+			flex: 0 0 auto;
+			width: 28px;
+			padding: 0;
+			border: 1px solid var(--pf-button-border, #ccc);
+			border-radius: 3px;
+			background: var(--pf-toolbar-bg, #fff);
+			color: var(--pf-text-secondary, #5a6470);
+			cursor: pointer;
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+		}
+		.pict-flow-popup-collapse-toggle:hover {
+			background-color: var(--pf-button-hover-bg, #eef);
+			color: var(--pf-text-primary, #2c3e50);
+		}
+		/* "Open" state: pressed-in look so the user sees that the form
+		   below is being driven by this gear. */
+		.pict-flow-popup-collapse-toggle[aria-expanded="true"] {
+			background-color: var(--pf-button-active-bg, #d6e4f0);
+			color: var(--pf-text-primary, #2c3e50);
+			border-color: var(--pf-button-hover-border, #3498db);
+		}
+		.pict-flow-popup-collapse-toggle svg {
+			display: block;
+		}
+		/* Subordinate description text — sits under a control (algorithm
+		   dropdown, edge-theme dropdown, etc.) and explains it. Indented
+		   from the section's left edge with a faint left rule so the
+		   visual hierarchy is unambiguous: SECTION LABEL > control >
+		   description. */
+		.pict-flow-popup-control-description {
+			font-size: 11px;
+			line-height: 1.4;
+			color: var(--pf-text-secondary, #5a6470);
+			padding: 4px 12px 8px 28px;
+			margin-left: 14px;
+			border-left: 2px solid var(--pf-divider-light, #e6e6e6);
+		}
+
+		/* The form host. Acts as the collapsible container around the
+		   pict-section-form metacontroller's emitted markup. */
+		.pict-flow-popup-layout-form-host {
+			margin: 0 10px 8px;
+			padding: 8px 10px;
+			background: var(--pf-toolbar-bg, #fafafa);
+			border: 1px solid var(--pf-button-border, #e0e0e0);
+			border-radius: 6px;
+			overflow: hidden;
+			max-height: 600px;
+			transition: max-height 0.22s ease, padding 0.22s ease,
+			            margin 0.22s ease, border-color 0.22s ease, opacity 0.18s ease;
+			opacity: 1;
+		}
+		.pict-flow-popup-layout-form-host[data-collapsed="true"] {
+			max-height: 0;
+			padding-top: 0;
+			padding-bottom: 0;
+			margin-top: 0;
+			margin-bottom: 0;
+			border-color: transparent;
+			opacity: 0;
+		}
+		.pict-flow-popup-layout-form-host > div { width: 100%; }
+
+		/* Form contents — make the auto-rendered sections look professional.
+		   The section headings stay visible; the redundant per-section
+		   "Group: Defaults" h3 is suppressed. */
+		.pict-flow-popup-layout-form .pict-form-view {
+			display: block;
+		}
+		.pict-flow-popup-layout-form .pict-form-section {
+			margin: 0;
+			padding: 0;
+		}
+		.pict-flow-popup-layout-form .pict-form-section h2 {
+			font-size: 10px;
+			font-weight: 700;
+			text-transform: uppercase;
+			letter-spacing: 0.05em;
+			opacity: 0.6;
+			margin: 8px 0 4px;
+			padding: 0;
+			border-bottom: 1px solid var(--pf-button-border, #e6e6e6);
+			padding-bottom: 3px;
+		}
+		.pict-flow-popup-layout-form .pict-form-section:first-child h2,
+		.pict-flow-popup-layout-form .pict-form-section h2:first-child {
+			margin-top: 0;
+		}
+		/* Group headings ("Group: Defaults") are noise — every algorithm
+		   has exactly one group right now. Hide them. */
+		.pict-flow-popup-layout-form .pict-form-section h3 {
+			display: none;
+		}
+		/* Each row of inputs lives in a flat <div> as alternating
+		   <span>label</span><input> pairs. Lay them out in a balanced grid. */
+		.pict-flow-popup-layout-form .pict-form-section > div > div {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 4px 14px;
+			margin: 4px 0;
+			align-items: center;
+		}
+		.pict-flow-popup-layout-form .pict-form-section span {
+			font-size: 12px;
+			color: var(--pf-text-primary, #2c3e50);
+			line-height: 1.4;
+			margin: 0;
+		}
+		.pict-flow-popup-layout-form input[type="number"],
+		.pict-flow-popup-layout-form input[type="text"],
+		.pict-flow-popup-layout-form select {
+			width: 88px;
+			padding: 2px 6px;
+			border: 1px solid var(--pf-button-border, #ccc);
+			border-radius: 3px;
+			font-size: 12px;
+			line-height: 1.3;
+			background: #fff;
+			color: var(--pf-text-primary, #2c3e50);
+			margin-left: -8px; /* tighten gap between label and its input */
+		}
+		.pict-flow-popup-layout-form select {
+			width: auto;
+			min-width: 110px;
+		}
+		.pict-flow-popup-layout-form input[type="number"]:focus,
+		.pict-flow-popup-layout-form input[type="text"]:focus,
+		.pict-flow-popup-layout-form select:focus {
+			outline: none;
+			border-color: var(--pf-button-hover-border, #3498db);
+			box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.15);
+		}
+		.pict-flow-popup-layout-form input[type="checkbox"] {
+			margin: 0 4px 0 0;
+		}
 		`;
 	}
 
@@ -787,6 +968,26 @@ class PictProviderFlowCSS extends libFableServiceProviderBase
 			cursor: pointer;
 			flex: 0 0 28px;
 		}
+
+		/* Suppress native number-input spinner buttons on every input
+		   inside a properties panel. Panels live inside <foreignObject>;
+		   browsers (Chromium / WebKit) render the up/down spinner chrome
+		   as native overlays that don't always respect SVG transforms or
+		   the parent tab pane's display:none — leaving stale spinner
+		   artifacts hanging around when the user switches tabs or pans
+		   the diagram. The user can still type numbers; they just don't
+		   get clickable spinners. (If we ever want spinners back, build
+		   them as real DOM elements next to the input, not native chrome.) */
+		.pict-flow-panel input[type="number"] {
+			-moz-appearance: textfield;
+			appearance: textfield;
+		}
+		.pict-flow-panel input[type="number"]::-webkit-outer-spin-button,
+		.pict-flow-panel input[type="number"]::-webkit-inner-spin-button {
+			-webkit-appearance: none;
+			appearance: none;
+			margin: 0;
+		}
 		`;
 	}
 
@@ -954,6 +1155,29 @@ class PictProviderFlowCSS extends libFableServiceProviderBase
 			align-items: center;
 			margin-left: 0.15em;
 		}
+		/* Split button — visible as one connected unit; the two halves
+		   route to different actions. Used for "Auto" so clicking the
+		   icon/text applies the current layout while the chevron half
+		   opens the algorithm popup with a generous hit area. */
+		.pict-flow-toolbar-btn-split {
+			display: inline-flex;
+			align-items: stretch;
+		}
+		.pict-flow-toolbar-btn-split-main {
+			border-top-right-radius: 0;
+			border-bottom-right-radius: 0;
+			border-right: 1px solid var(--pf-button-border);
+			margin-right: -1px; /* collapse the seam between the two buttons */
+		}
+		.pict-flow-toolbar-btn-split-chevron {
+			border-top-left-radius: 0;
+			border-bottom-left-radius: 0;
+			padding-left: 0.55em;
+			padding-right: 0.55em;
+		}
+		.pict-flow-toolbar-btn-split-chevron .pict-flow-toolbar-btn-chevron {
+			margin: 0;
+		}
 		.pict-flow-toolbar-right {
 			margin-left: auto;
 			border-right: none;
@@ -1075,7 +1299,7 @@ class PictProviderFlowCSS extends libFableServiceProviderBase
 			border-radius: 6px;
 			box-shadow: 0 4px 16px rgba(0,0,0,0.12);
 			min-width: 240px;
-			max-height: 340px;
+			max-height: 80vh;
 			overflow-y: auto;
 			padding: 0.35em 0;
 			font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;

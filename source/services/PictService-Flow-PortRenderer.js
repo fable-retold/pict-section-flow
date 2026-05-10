@@ -43,6 +43,12 @@ class PictServiceFlowPortRenderer extends libFableServiceProviderBase
 		let tmpPortLabelsOutside = (pNodeTypeConfig && pNodeTypeConfig.PortLabelsOutside);
 		let tmpGeometryProvider = this._FlowView._GeometryProvider;
 
+		// Connected ports get their colored dot drawn by the connection
+		// renderer at the actual line attachment (which may have been
+		// reshaped by an edge theme like Perimeter). Unconnected ports
+		// still draw their dot at the static card-defined position.
+		let tmpConnectedPortHashes = this._collectConnectedPortHashes(pNodeData.Hash);
+
 		// Group ports by their Side value (supports all 12 positions)
 		let tmpPortsBySide = {};
 		for (let i = 0; i < pNodeData.Ports.length; i++)
@@ -167,6 +173,16 @@ class PictServiceFlowPortRenderer extends libFableServiceProviderBase
 							+ ' L ' + (tmpBadgeX + tmpBadgeWidth) + ' ' + (tmpBadgeY + tmpBadgeHeight);
 					}
 
+					// Wrap the badge elements in a hoverable group so we can
+					// listen for mouseenter/mouseleave on the badge as a
+					// whole. Tagged with data-port-hash + data-node-hash so
+					// the hover handler can surface this port's hint paths.
+					let tmpBadgeGroup = this._FlowView._SVGHelperProvider.createSVGElement('g');
+					tmpBadgeGroup.setAttribute('class', 'pict-flow-port-badge');
+					tmpBadgeGroup.setAttribute('data-port-hash', tmpPort.Hash);
+					tmpBadgeGroup.setAttribute('data-node-hash', pNodeData.Hash);
+					this._wirePortHintHover(tmpBadgeGroup, tmpPort.Hash, null);
+
 					// Background rect (cream, no stroke — border drawn separately)
 					let tmpBgRect = this._FlowView._SVGHelperProvider.createSVGElement('rect');
 					tmpBgRect.setAttribute('class', 'pict-flow-port-label-bg');
@@ -175,7 +191,7 @@ class PictServiceFlowPortRenderer extends libFableServiceProviderBase
 					tmpBgRect.setAttribute('width', String(tmpBadgeWidth));
 					tmpBgRect.setAttribute('height', String(tmpBadgeHeight));
 					tmpBgRect.setAttribute('fill', 'var(--pf-port-label-bg, rgba(255, 253, 240, 0.5))');
-					pGroup.appendChild(tmpBgRect);
+					tmpBadgeGroup.appendChild(tmpBgRect);
 
 					// 3-sided border path (open on the edge-facing side)
 					let tmpBorderPathEl = this._FlowView._SVGHelperProvider.createSVGElement('path');
@@ -184,7 +200,7 @@ class PictServiceFlowPortRenderer extends libFableServiceProviderBase
 					tmpBorderPathEl.setAttribute('fill', 'none');
 					tmpBorderPathEl.setAttribute('stroke', tmpBorderColor);
 					tmpBorderPathEl.setAttribute('stroke-width', '0.75');
-					pGroup.appendChild(tmpBorderPathEl);
+					tmpBadgeGroup.appendChild(tmpBorderPathEl);
 
 					// Colored stripe on the inner side
 					let tmpStripe = this._FlowView._SVGHelperProvider.createSVGElement('rect');
@@ -194,7 +210,9 @@ class PictServiceFlowPortRenderer extends libFableServiceProviderBase
 					tmpStripe.setAttribute('width', String(tmpStripeW));
 					tmpStripe.setAttribute('height', String(tmpStripeH));
 					tmpStripe.setAttribute('fill', tmpBorderColor);
-					pGroup.appendChild(tmpStripe);
+					tmpBadgeGroup.appendChild(tmpStripe);
+
+					pGroup.appendChild(tmpBadgeGroup);
 
 					// Text label — appended after circle for z-order
 					tmpLabelElement = this._FlowView._SVGHelperProvider.createSVGElement('text');
@@ -207,35 +225,41 @@ class PictServiceFlowPortRenderer extends libFableServiceProviderBase
 					tmpLabelElement.setAttribute('dominant-baseline', 'central');
 				}
 
-				// Port circle (rendered on top of badge background)
-				let tmpShapeProvider = this._FlowView._ConnectorShapesProvider;
-				let tmpCircle;
-				if (tmpShapeProvider)
+				// Port circle (rendered on top of badge background) —
+				// only for unconnected ports. Connected ports get their
+				// dot painted by the connection renderer at the actual
+				// attachment point (so it follows edge-theme overrides).
+				if (!tmpConnectedPortHashes[tmpPort.Hash])
 				{
-					tmpCircle = tmpShapeProvider.createPortElement(tmpPort, tmpPosition, pNodeData.Hash);
-				}
-				else
-				{
-					tmpCircle = this._FlowView._SVGHelperProvider.createSVGElement('circle');
-					let tmpPortClass = `pict-flow-port ${tmpPort.Direction}`;
-					if (tmpPort.PortType)
+					let tmpShapeProvider = this._FlowView._ConnectorShapesProvider;
+					let tmpCircle;
+					if (tmpShapeProvider)
 					{
-						tmpPortClass += ` port-type-${tmpPort.PortType}`;
+						tmpCircle = tmpShapeProvider.createPortElement(tmpPort, tmpPosition, pNodeData.Hash);
 					}
-					tmpCircle.setAttribute('class', tmpPortClass);
-					tmpCircle.setAttribute('cx', String(tmpPosition.x));
-					tmpCircle.setAttribute('cy', String(tmpPosition.y));
-					tmpCircle.setAttribute('r', '5');
-					tmpCircle.setAttribute('data-port-hash', tmpPort.Hash);
-					tmpCircle.setAttribute('data-node-hash', pNodeData.Hash);
-					tmpCircle.setAttribute('data-port-direction', tmpPort.Direction);
-					if (tmpPort.PortType)
+					else
 					{
-						tmpCircle.setAttribute('data-port-type', tmpPort.PortType);
+						tmpCircle = this._FlowView._SVGHelperProvider.createSVGElement('circle');
+						let tmpPortClass = `pict-flow-port ${tmpPort.Direction}`;
+						if (tmpPort.PortType)
+						{
+							tmpPortClass += ` port-type-${tmpPort.PortType}`;
+						}
+						tmpCircle.setAttribute('class', tmpPortClass);
+						tmpCircle.setAttribute('cx', String(tmpPosition.x));
+						tmpCircle.setAttribute('cy', String(tmpPosition.y));
+						tmpCircle.setAttribute('r', '5');
+						tmpCircle.setAttribute('data-port-hash', tmpPort.Hash);
+						tmpCircle.setAttribute('data-node-hash', pNodeData.Hash);
+						tmpCircle.setAttribute('data-port-direction', tmpPort.Direction);
+						if (tmpPort.PortType)
+						{
+							tmpCircle.setAttribute('data-port-type', tmpPort.PortType);
+						}
+						tmpCircle.setAttribute('data-element-type', 'port');
 					}
-					tmpCircle.setAttribute('data-element-type', 'port');
+					pGroup.appendChild(tmpCircle);
 				}
-				pGroup.appendChild(tmpCircle);
 
 				// Port label text (on top of everything)
 				if (tmpLabelElement)
@@ -244,6 +268,78 @@ class PictServiceFlowPortRenderer extends libFableServiceProviderBase
 				}
 			}
 		}
+	}
+
+	/**
+	 * Wire mouseenter/mouseleave on a hoverable element so it activates
+	 * port-hint paths in the port-hints layer. When `pPortHash` is set,
+	 * only hints for that port light up; when `pNodeHash` is set (and
+	 * port hash is null), every hint on that node lights up. Static —
+	 * no closure-state dependency on the node/port objects themselves.
+	 *
+	 * @param {SVGElement} pHoverEl
+	 * @param {string|null} pPortHash
+	 * @param {string|null} pNodeHash
+	 */
+	_wirePortHintHover(pHoverEl, pPortHash, pNodeHash)
+	{
+		if (!pHoverEl || typeof pHoverEl.addEventListener !== 'function') return;
+
+		let tmpFlowView = this._FlowView;
+		let tmpSelector = pPortHash
+			? `.pict-flow-port-hint[data-port-hash="${pPortHash}"]`
+			: `.pict-flow-port-hint[data-node-hash="${pNodeHash}"]`;
+
+		pHoverEl.addEventListener('mouseenter', function ()
+		{
+			let tmpScope = tmpFlowView._SVGElement || document;
+			let tmpHints = tmpScope.querySelectorAll(tmpSelector);
+			for (let i = 0; i < tmpHints.length; i++)
+			{
+				tmpHints[i].setAttribute('data-active', 'true');
+			}
+		});
+		pHoverEl.addEventListener('mouseleave', function ()
+		{
+			let tmpScope = tmpFlowView._SVGElement || document;
+			let tmpHints = tmpScope.querySelectorAll(tmpSelector);
+			for (let i = 0; i < tmpHints.length; i++)
+			{
+				tmpHints[i].removeAttribute('data-active');
+			}
+		});
+	}
+
+	/**
+	 * Build a hash-set of port hashes on the given node that participate
+	 * in any connection (either as source or target). Used to suppress
+	 * the static port circle so the connection renderer can paint the
+	 * dot at the resolved attachment point instead.
+	 *
+	 * @param {string} pNodeHash
+	 * @returns {Object} keyed by port hash → true
+	 */
+	_collectConnectedPortHashes(pNodeHash)
+	{
+		let tmpResult = {};
+		if (!this._FlowView || !this._FlowView._FlowData || !Array.isArray(this._FlowView._FlowData.Connections))
+		{
+			return tmpResult;
+		}
+		let tmpConns = this._FlowView._FlowData.Connections;
+		for (let i = 0; i < tmpConns.length; i++)
+		{
+			let tmpConn = tmpConns[i];
+			if (tmpConn.SourceNodeHash === pNodeHash && tmpConn.SourcePortHash)
+			{
+				tmpResult[tmpConn.SourcePortHash] = true;
+			}
+			if (tmpConn.TargetNodeHash === pNodeHash && tmpConn.TargetPortHash)
+			{
+				tmpResult[tmpConn.TargetPortHash] = true;
+			}
+		}
+		return tmpResult;
 	}
 
 	/**

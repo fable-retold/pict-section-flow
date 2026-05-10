@@ -35,6 +35,32 @@ module.exports.PictProviderFlowCSS = require('./providers/PictProvider-Flow-CSS.
 module.exports.PictProviderFlowIcons = require('./providers/PictProvider-Flow-Icons.js');
 module.exports.PictProviderFlowConnectorShapes = require('./providers/PictProvider-Flow-ConnectorShapes.js');
 
+// Layout algorithm descriptors (consumers can register custom algorithms via
+// _LayoutService.registerAlgorithm({ Name, Apply, DefaultParameters, ParameterSchema }))
+module.exports.LayoutAlgorithms =
+{
+	Custom:           require('./providers/layouts/Layout-Custom.js'),
+	Layered:          require('./providers/layouts/Layout-Layered.js'),
+	ForcedFromCenter: require('./providers/layouts/Layout-ForcedFromCenter.js'),
+	Grid:             require('./providers/layouts/Layout-Grid.js'),
+	Circular:         require('./providers/layouts/Layout-Circular.js'),
+	Tabular:          require('./providers/layouts/Layout-Tabular.js'),
+	Columnar:         require('./providers/layouts/Layout-Columnar.js')
+};
+
+// Edge-theme descriptors (consumers can register custom edge themes via
+// _LayoutService.registerEdgeTheme({ Name, GeneratePath, AdjustLayout?, ResolveAttachment?, ... }))
+module.exports.EdgeThemes =
+{
+	Bezier:               require('./providers/edges/Edge-Bezier.js'),
+	Orthogonal:           require('./providers/edges/Edge-Orthogonal.js'),
+	Straight:             require('./providers/edges/Edge-Straight.js'),
+	OrthogonalSnap:       require('./providers/edges/Edge-OrthogonalSnap.js'),
+	Perimeter:            require('./providers/edges/Edge-Perimeter.js'),
+	PerimeterLinear:      require('./providers/edges/Edge-Perimeter-Linear.js'),
+	PerimeterOrthogonal:  require('./providers/edges/Edge-Perimeter-Orthogonal.js')
+};
+
 // FlowCard base class
 module.exports.PictFlowCard = require('./PictFlowCard.js');
 

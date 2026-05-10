@@ -1,5 +1,6 @@
 const libPictView = require('pict-view');
 const libPictSectionFlow = require('pict-section-flow');
+const libSampleFlows = require('../sample-flows.js');
 
 // FlowCard definitions
 const libFlowCardIfThenElse = require('../cards/FlowCard-IfThenElse.js');
@@ -80,6 +81,47 @@ const _ViewConfiguration =
 		#FlowExample-Flow-Container {
 			flex: 1;
 			min-height: 0;
+		}
+		.flowexample-sample-bar {
+			flex-shrink: 0;
+			margin: 0 0 0.75em 0;
+			padding: 0.6em 0.75em;
+			background: var(--theme-color-background-panel, #fff);
+			border: 1px solid var(--theme-color-border-light, #dee2e6);
+			border-radius: 6px;
+			display: flex;
+			align-items: center;
+			gap: 0.6em;
+			flex-wrap: wrap;
+		}
+		.flowexample-sample-bar label {
+			font-weight: 600;
+			color: #2c3e50;
+			font-size: 0.9em;
+		}
+		.flowexample-sample-bar select {
+			padding: 0.35em 0.55em;
+			border: 1px solid #ced4da;
+			border-radius: 4px;
+			background: #fff;
+			font-size: 0.95em;
+			min-width: 220px;
+		}
+		.flowexample-sample-description {
+			flex: 1;
+			min-width: 280px;
+			color: #5a6470;
+			font-size: 0.85em;
+			line-height: 1.4;
+		}
+		.flowexample-sample-recommended {
+			padding: 0.2em 0.55em;
+			background: #eaf6ee;
+			color: #1f7a3f;
+			border-radius: 4px;
+			font-size: 0.8em;
+			font-weight: 600;
+			white-space: nowrap;
 		}
 		.flowexample-help-panel {
 			flex-shrink: 0;
@@ -179,6 +221,12 @@ const _ViewConfiguration =
 				<p>Use the Layouts toolbar to save, restore, and delete named arrangement snapshots.</p>
 			</div>
 		</div>
+	</div>
+	<div class="flowexample-sample-bar">
+		<label for="FlowExample-SampleSelect">Sample graph:</label>
+		<select id="FlowExample-SampleSelect"></select>
+		<span class="flowexample-sample-recommended" id="FlowExample-SampleRecommended"></span>
+		<span class="flowexample-sample-description" id="FlowExample-SampleDescription">Pick a sample, then open the <strong>Algorithm</strong> popup in the toolbar to compare layouts.</span>
 	</div>
 	<div id="FlowExample-Flow-Container"></div>
 </div>
@@ -311,7 +359,92 @@ class FlowExampleMainWorkspaceView extends libPictView
 			});
 		}
 
+		// Populate the sample-graph selector and wire its change handler.
+		this._populateSampleSelector();
+
 		return super.onAfterRender(pRenderable, pRenderDestinationAddress, pRecord, pContent);
+	}
+
+	/**
+	 * Populate the sample-graph dropdown above the flow diagram and wire
+	 * the change handler. The first option ("Hello World") is the rich
+	 * default flow that lives in AppData.FlowExample.SampleFlow; the rest
+	 * come from sample-flows.js and showcase a different layout strength.
+	 */
+	_populateSampleSelector()
+	{
+		let tmpSelect = document.getElementById('FlowExample-SampleSelect');
+		let tmpDesc   = document.getElementById('FlowExample-SampleDescription');
+		let tmpReco   = document.getElementById('FlowExample-SampleRecommended');
+		if (!tmpSelect || !tmpDesc || !tmpReco) return;
+
+		// Clear pre-existing options
+		while (tmpSelect.firstChild) tmpSelect.removeChild(tmpSelect.firstChild);
+
+		let tmpHelloOpt = document.createElement('option');
+		tmpHelloOpt.value = '__hello-world__';
+		tmpHelloOpt.textContent = 'Hello World — multi-feature reference';
+		tmpSelect.appendChild(tmpHelloOpt);
+
+		let tmpKeys = libSampleFlows.getSampleNames();
+		for (let i = 0; i < tmpKeys.length; i++)
+		{
+			let tmpSample = libSampleFlows.getSample(tmpKeys[i]);
+			let tmpOpt = document.createElement('option');
+			tmpOpt.value = tmpKeys[i];
+			tmpOpt.textContent = tmpSample.Name;
+			tmpSelect.appendChild(tmpOpt);
+		}
+
+		// Initial description (Hello World)
+		tmpDesc.innerHTML = 'Pick a sample, then open the <strong>Algorithm</strong> popup in the toolbar to compare layouts.';
+		tmpReco.style.display = 'none';
+
+		let tmpView = this;
+		tmpSelect.addEventListener('change', function ()
+		{
+			let tmpKey = tmpSelect.value;
+			tmpView._loadSample(tmpKey, tmpDesc, tmpReco);
+		});
+	}
+
+	/**
+	 * Load a sample flow into the FlowView. `__hello-world__` reloads the
+	 * original AppData-backed flow; everything else comes from sample-flows.
+	 *
+	 * @param {string} pKey
+	 * @param {HTMLElement} pDescEl
+	 * @param {HTMLElement} pRecoEl
+	 */
+	_loadSample(pKey, pDescEl, pRecoEl)
+	{
+		if (!this._FlowView) return;
+
+		if (pKey === '__hello-world__')
+		{
+			this._FlowView.setFlowData(this.pict.AppData.FlowExample.SampleFlow);
+			pDescEl.innerHTML = 'The full reference flow with all card types, properties panels, and an error branch. Originally designed by hand — set <code>LayoutAlgorithm</code> to <em>Layered</em> to see how the auto-layout compares.';
+			pRecoEl.style.display = 'none';
+			return;
+		}
+
+		let tmpSample = libSampleFlows.getSample(pKey);
+		if (!tmpSample) return;
+
+		// setFlowData expects a fresh _FlowData-shaped object — deep clone so
+		// re-loading the same sample doesn't share mutated node references
+		// with prior loads.
+		this._FlowView.setFlowData(JSON.parse(JSON.stringify(tmpSample.Flow)));
+		pDescEl.textContent = tmpSample.Description;
+		if (tmpSample.Recommended)
+		{
+			pRecoEl.style.display = '';
+			pRecoEl.textContent = `Try: ${tmpSample.Recommended}`;
+		}
+		else
+		{
+			pRecoEl.style.display = 'none';
+		}
 	}
 }
 

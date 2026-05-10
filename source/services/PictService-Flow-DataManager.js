@@ -94,6 +94,12 @@ class PictServiceFlowDataManager extends libFableServiceProviderBase
 			return;
 		}
 
+		let tmpDefaultAlgorithm = (this._FlowView.options && this._FlowView.options.DefaultLayoutAlgorithm) || 'Custom';
+		let tmpDefaultParameters = (this._FlowView.options && this._FlowView.options.DefaultLayoutParameters) || {};
+		let tmpDefaultAutoApply = !!(this._FlowView.options && this._FlowView.options.DefaultLayoutAutoApply);
+		let tmpDefaultEdgeTheme = (this._FlowView.options && this._FlowView.options.DefaultEdgeTheme) || null;
+		let tmpDefaultEdgeThemeParameters = (this._FlowView.options && this._FlowView.options.DefaultEdgeThemeParameters) || {};
+
 		this._FlowView._FlowData = {
 			Nodes: Array.isArray(pFlowData.Nodes) ? pFlowData.Nodes : [],
 			Connections: Array.isArray(pFlowData.Connections) ? pFlowData.Connections : [],
@@ -102,7 +108,12 @@ class PictServiceFlowDataManager extends libFableServiceProviderBase
 			ViewState: Object.assign(
 				{ PanX: 0, PanY: 0, Zoom: 1, SelectedNodeHash: null, SelectedConnectionHash: null, SelectedTetherHash: null },
 				pFlowData.ViewState || {}
-			)
+			),
+			LayoutAlgorithm: (typeof pFlowData.LayoutAlgorithm === 'string' && pFlowData.LayoutAlgorithm !== '') ? pFlowData.LayoutAlgorithm : tmpDefaultAlgorithm,
+			LayoutParameters: (pFlowData.LayoutParameters && typeof pFlowData.LayoutParameters === 'object') ? JSON.parse(JSON.stringify(pFlowData.LayoutParameters)) : JSON.parse(JSON.stringify(tmpDefaultParameters)),
+			LayoutAutoApply: (typeof pFlowData.LayoutAutoApply === 'boolean') ? pFlowData.LayoutAutoApply : tmpDefaultAutoApply,
+			EdgeTheme: (typeof pFlowData.EdgeTheme === 'string' && pFlowData.EdgeTheme !== '') ? pFlowData.EdgeTheme : tmpDefaultEdgeTheme,
+			EdgeThemeParameters: (pFlowData.EdgeThemeParameters && typeof pFlowData.EdgeThemeParameters === 'object') ? JSON.parse(JSON.stringify(pFlowData.EdgeThemeParameters)) : JSON.parse(JSON.stringify(tmpDefaultEdgeThemeParameters))
 		};
 
 		// Merge any browser-persisted layouts into the newly loaded data
