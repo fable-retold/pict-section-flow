@@ -1,7 +1,7 @@
 {
-	"Generated": "2026-05-23T01:50:57.746Z",
+	"Generated": "2026-05-26T18:22:41.475Z",
 	"Mode": "module",
-	"GitHubOrg": "stevenvelozo",
+	"GitHubOrg": "fable-retold",
 	"DefaultBranch": "master",
 	"Module": {
 		"Name": "pict-section-flow",
@@ -187,6 +187,7 @@
 			"Theme_Integration.md",
 			"_brand.json",
 			"_cover.md",
+			"_playground.json",
 			"_sidebar.md",
 			"_topbar.md",
 			"_version.json",
@@ -225,6 +226,14 @@
 			"examples/simple_cards/index.html",
 			"examples/simple_cards/pict-section-flow-example-simple-cards.compatible.min.js",
 			"index.html",
+			"playground/app.json",
+			"playground/appdata.json",
+			"playground/application.js",
+			"playground/pict.json",
+			"playground/runtime/pict-application.min.js",
+			"playground/runtime/pict-section-flow.min.js",
+			"playground/runtime/pict-section-modal.min.js",
+			"playground/runtime/pict.min.js",
 			"retold-catalog.json",
 			"retold-keyword-index.json"
 		]
