@@ -1,7 +1,6 @@
 # Pict-Section-Flow
 
-[![npm version](https://badge.fury.io/js/pict-section-flow.svg)](https://www.npmjs.com/package/pict-section-flow)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[pict-section-flow on npm](https://www.npmjs.com/package/pict-section-flow) | [MIT License](LICENSE)
 
 An interactive flow diagram section view for the Pict application framework. Build node-based visual editors, workflow designers, and data pipeline tools with a declarative, configuration-driven API.
 
