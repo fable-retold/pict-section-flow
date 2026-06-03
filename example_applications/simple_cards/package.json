@@ -27,7 +27,7 @@
 		"pict-provider": "^1.0.3",
 		"pict-section-content": "^0.0.6",
 		"pict-section-form": "^1.0.192",
-		"pict-section-flow": "file:../../"
+		"pict-section-flow": "^1.0.1"
 	},
 	"devDependencies": {
 		"quackage": "^1.0.58"
