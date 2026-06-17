@@ -192,11 +192,23 @@ class PictServiceFlowRenderManager extends libFableServiceProviderBase
 		// Reset customized handle positions for connections/tethers involving this node
 		this._FlowView._resetHandlesForNode(pNodeHash);
 
-		// Update the node's SVG group transform for smooth dragging
+		// Update the node's SVG group transform for smooth dragging. PRESERVE the node's rotation -- a bare
+		// translate here flattened a rotated card back to upright the instant you started dragging (matches
+		// PictViewFlowNode.nodeTransform: rotate about the node center).
 		let tmpNodeGroup = this._FlowView._NodesLayer.querySelector(`[data-node-hash="${pNodeHash}"]`);
 		if (tmpNodeGroup)
 		{
-			tmpNodeGroup.setAttribute('transform', `translate(${pX}, ${pY})`);
+			let tmpRotation = (typeof tmpNode.Rotation === 'number') ? tmpNode.Rotation : 0;
+			if (tmpRotation)
+			{
+				let tmpW = (typeof tmpNode.Width === 'number') ? tmpNode.Width : (this._FlowView.options.DefaultNodeWidth || 180);
+				let tmpH = (typeof tmpNode.Height === 'number') ? tmpNode.Height : (this._FlowView.options.DefaultNodeHeight || 80);
+				tmpNodeGroup.setAttribute('transform', `translate(${pX}, ${pY}) rotate(${tmpRotation} ${tmpW / 2} ${tmpH / 2})`);
+			}
+			else
+			{
+				tmpNodeGroup.setAttribute('transform', `translate(${pX}, ${pY})`);
+			}
 		}
 
 		// Re-render connections that involve this node
