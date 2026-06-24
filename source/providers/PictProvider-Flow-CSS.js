@@ -962,6 +962,14 @@ class PictProviderFlowCSS extends libFableServiceProviderBase
 		.pict-flow-panel-titlebar.dragging {
 			cursor: grabbing;
 		}
+		/* While a panel's foreignObject is dragged or resized, its x/y/height are rewritten on every
+		   pointermove. A box-shadow on the HTML panel bleeds past the foreignObject box, and that bled
+		   region is not in the per-move dirty rect, so the browser smears a copy of the shadow at the
+		   old position (the "stuck shadow"). Drop the shadow for the duration of the gesture so there
+		   is nothing to leave behind; it returns in place the moment the drag ends. */
+		.pict-flow-panel-foreign-object.pict-flow-panel-dragging .pict-flow-panel {
+			box-shadow: none;
+		}
 		.pict-flow-panel-title-text {
 			font-weight: 600;
 			font-size: 12px;

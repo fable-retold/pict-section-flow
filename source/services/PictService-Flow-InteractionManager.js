@@ -985,6 +985,20 @@ class PictServiceFlowInteractionManager extends libFableServiceProviderBase
 
 	// ---- Panel Dragging ----
 
+	// Toggle a "gesture in progress" marker on a panel's foreignObject. The panel CSS drops the
+	// panel box-shadow while this class is present: dragging/resizing rewrites the foreignObject
+	// geometry every pointermove, and the shadow (which bleeds outside the foreignObject box) would
+	// otherwise be smeared in place at each old position. No shadow during the gesture means none to
+	// leave behind; it returns when the class is removed at the end of the drag.
+	_setPanelGestureActive(pPanelHash, pIsActive)
+	{
+		if (!pPanelHash || !this._FlowView || !this._FlowView._PanelsLayer) { return; }
+		let tmpForeignObject = this._FlowView._PanelsLayer.querySelector('[data-panel-hash="' + pPanelHash + '"]');
+		if (!tmpForeignObject) { return; }
+		if (pIsActive) { tmpForeignObject.classList.add('pict-flow-panel-dragging'); }
+		else { tmpForeignObject.classList.remove('pict-flow-panel-dragging'); }
+	}
+
 	_startPanelDrag(pEvent, pTarget)
 	{
 		let tmpPanelHash = this._getPanelHash(pTarget);
@@ -999,6 +1013,7 @@ class PictServiceFlowInteractionManager extends libFableServiceProviderBase
 		this._DragPanelStartY = pEvent.clientY;
 		this._DragPanelDataStartX = tmpPanel.X;
 		this._DragPanelDataStartY = tmpPanel.Y;
+		this._setPanelGestureActive(tmpPanelHash, true);
 	}
 
 	_onPanelDrag(pEvent)
@@ -1026,6 +1041,7 @@ class PictServiceFlowInteractionManager extends libFableServiceProviderBase
 			this._FlowView._EventHandlerProvider.fireEvent('onFlowChanged', this._FlowView.flowData);
 		}
 
+		this._setPanelGestureActive(this._DragPanelHash, false);
 		this._setState(INTERACTION_STATES.IDLE);
 		this._DragPanelHash = null;
 	}
@@ -1044,6 +1060,7 @@ class PictServiceFlowInteractionManager extends libFableServiceProviderBase
 		this._ResizePanelHash = tmpPanelHash;
 		this._ResizeStartY = pEvent.clientY;
 		this._ResizePanelStartHeight = tmpPanel.Height;
+		this._setPanelGestureActive(tmpPanelHash, true);
 	}
 
 	_onPanelResize(pEvent)
@@ -1083,6 +1100,7 @@ class PictServiceFlowInteractionManager extends libFableServiceProviderBase
 			this._FlowView._EventHandlerProvider.fireEvent('onFlowChanged', this._FlowView.flowData);
 		}
 
+		this._setPanelGestureActive(this._ResizePanelHash, false);
 		this._setState(INTERACTION_STATES.IDLE);
 		this._ResizePanelHash = null;
 	}
