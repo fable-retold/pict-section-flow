@@ -1297,11 +1297,12 @@ class PictViewFlow extends libPictView
 	}
 
 	/**
-	 * Zoom to fit all nodes in the viewport
+	 * Zoom to fit all nodes in the viewport.
+	 * @param {boolean} pAllowZoomIn - when true the fit may scale up past 1.0 (presentation banners opt in).
 	 */
-	zoomToFit()
+	zoomToFit(pAllowZoomIn)
 	{
-		return this._ViewportManager.zoomToFit();
+		return this._ViewportManager.zoomToFit(pAllowZoomIn);
 	}
 
 	/**

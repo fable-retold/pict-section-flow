@@ -70,9 +70,12 @@ class PictServiceFlowViewportManager extends libFableServiceProviderBase
 	}
 
 	/**
-	 * Zoom to fit all nodes in the viewport
+	 * Zoom to fit all nodes in the viewport.
+	 * @param {boolean} pAllowZoomIn - when true the fit may scale UP past 1.0 (to MaxZoom) so a small board
+	 *   fills the viewport. Default (falsy) keeps the historic behavior: never zoom in past 1.0, so content
+	 *   stays true-to-scale and a sparse map does not balloon. Presentation banners opt in.
 	 */
-	zoomToFit()
+	zoomToFit(pAllowZoomIn)
 	{
 		if (this._FlowView._FlowData.Nodes.length === 0) return;
 		if (!this._FlowView._SVGElement) return;
@@ -96,7 +99,8 @@ class PictServiceFlowViewportManager extends libFableServiceProviderBase
 		let tmpSVGRect = this._FlowView._SVGElement.getBoundingClientRect();
 		let tmpScaleX = tmpSVGRect.width / tmpFlowWidth;
 		let tmpScaleY = tmpSVGRect.height / tmpFlowHeight;
-		let tmpZoom = Math.min(tmpScaleX, tmpScaleY, 1.0); // Don't zoom in past 1.0
+		let tmpZoom = Math.min(tmpScaleX, tmpScaleY);
+		if (!pAllowZoomIn) { tmpZoom = Math.min(tmpZoom, 1.0); } // Don't zoom in past 1.0 unless the caller opts in
 		tmpZoom = Math.max(this._FlowView.options.MinZoom, Math.min(this._FlowView.options.MaxZoom, tmpZoom));
 
 		let tmpCenterX = (tmpMinX + tmpMaxX) / 2;
